@@ -1,0 +1,17 @@
+/Include
+/[Ll]ib
+/Scripts
+/share
+/test
+
+*.egg-info/
+dist/
+__pycache__/
+*.sqlite
+
+
+
+
+
+pyvenv.cfg
+*.csv
