@@ -134,6 +134,9 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
         while response_queue:
             response = response_queue.pop()
+
+            if self._dispatch_breaker(action, response) is True:
+                break
             
             is_parsable = True
             for link in self._dispatch_renderer(action, response, _responsemap, context):
