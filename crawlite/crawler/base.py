@@ -92,7 +92,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
     
     def _dispatch_response(self, action, url, headers, context=None):
         if action.payloader:
-            payload = self.dispatch('payloader', action.payloader, context)
+            payload = self.dispatch('payloader', action.payloader, context=context)
             response = self.post(url, payload=payload, headers=headers, **action.__dict__)
         else:
             response = self.get(url, headers=headers, **action.as_kwargs())
@@ -111,9 +111,9 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         return header
     
     
-    def _dispatch_breaker(self, action, response):
+    def _dispatch_breaker(self, action, response, context):
         return self.dispatch(
-            'breaker', action.breaker, response
+            'breaker', action.breaker, response, context=context
         )
 
 
@@ -135,7 +135,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         while response_queue:
             response = response_queue.pop()
 
-            if self._dispatch_breaker(action, response) is True:
+            if self._dispatch_breaker(action, response, context) is True:
                 break
             
             is_parsable = True
