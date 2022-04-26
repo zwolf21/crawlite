@@ -47,13 +47,13 @@ class UrlPatternAction(BaseAction):
 
 def urlrender(
     host=None, urlrenderer=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, suspender=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
     return UrlRenderAction(**locals())
 
 
 def urlpattern(
     urlpattern=None, urlpattern_renderer=None, remove_duplicates=True, attrs=None, css_selector=None, recursive=False,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, suspender=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
     return UrlPatternAction(**locals())
 
 

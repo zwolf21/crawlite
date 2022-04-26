@@ -38,7 +38,8 @@ class ReducerMixin:
                 'urlrenderer': self.default_urlrenderer,
                 'urlpattern_renderer': self.default_pattern_renderer,
                 'breaker': self.default_breaker,
-                'payloader': self.default_payloader
+                'payloader': self.default_payloader, 
+                'suspender': self.default_suspender
             }[type]
 
         return filter_kwargs(f, *args, **kwargs)
@@ -64,3 +65,6 @@ class ReducerMixin:
     
     def default_payloader(self, context):
         yield None
+    
+    def default_suspender(self, resposne, suspended, context):
+        return 0

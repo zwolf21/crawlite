@@ -1,15 +1,18 @@
 from collections import abc, deque
+import time
 from urllib.error import URLError
+
 
 from ..core.http.cached_request import CachedRequests
 from ..core.parser.soup import SoupParser
 from ..utils.urls import queryjoin, urljoin
 from ..utils.module import find_function, filter_kwargs
+from ..settings import CRAWL_SUSPENDE_LOOP_POLLING_RATE
 from .exceptions import *
 from .actions import UrlPatternAction, UrlRenderAction
 from .reducer import ReducerMixin
 from .meta import ResponseMeta
-
+from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, CRAWLING_SUSPENDED, catch_crawl_exception
 
 
 
@@ -115,7 +118,11 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         return self.dispatch(
             'breaker', action.breaker, response, context=context
         )
-
+    
+    def _dispatch_suspender(self, action, response, suspended, context):
+        return self.dispatch(
+            'suspender', action.suspender, response, suspended, context=context
+        )
 
     def get_action(self, name):
         for action in self.urlorders:
@@ -126,18 +133,34 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         return results
 
 
-    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None):
+    @catch_crawl_exception
+    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0, crawl_listener=lambda module, event, context=None: True):
+
+        module_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
         action, *rest = _urlorders or self.urlorders
 
         response_queue = deque([_response])
         _visited = _visited or set()
+        
+        if _response is None:
+            crawl_listener(module_name, CRAWLING_STARTED, {'visite_count': _visite_count})
 
         while response_queue:
             response = response_queue.pop()
 
+            # break loop
             if self._dispatch_breaker(action, response, context) is True:
+                crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
                 break
             
+            # suspend loop
+            suspended = 0 
+            if (suspend := self._dispatch_suspender(action, response, suspended, context)) > 0:
+                while suspended < suspend:
+                    suspended += CRAWL_SUSPENDE_LOOP_POLLING_RATE
+                    crawl_listener(module_name, CRAWLING_SUSPENDED, {'suspended': suspended})
+                    time.sleep(CRAWL_SUSPENDE_LOOP_POLLING_RATE)
+
             is_parsable = True
             for link in self._dispatch_renderer(action, response, _responsemap, context):
                 url = self._resolve_link(link, action, response)
@@ -151,6 +174,8 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 _visited.add(url)
 
                 ## get response
+                _visite_count += 1
+                crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
                 header_referer = self._dispatch_referer(action, response)
                 sub_response = self._dispatch_response(action, url, header_referer, context=context)
 
@@ -179,8 +204,11 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                     if isinstance(action, UrlPatternAction):
                         if action.recursive:
                             response_queue.append(sub_response)
-                    self.crawl(context, sub_response, rest, _visited, meta.responsemap)
+                    self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count, crawl_listener)
 
             # BFO if not passable
             if is_parsable is False:
-                self.crawl(context, response, rest, _visited, meta.responsemap)
+                self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count, crawl_listener)
+        
+        if _response is None:
+            crawl_listener(module_name, CRAWLING_COMPLETED, {'visite_count': _visite_count})
