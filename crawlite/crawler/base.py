@@ -119,10 +119,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             'breaker', action.breaker, response, context=context
         )
     
-    def _dispatch_suspender(self, action, response, suspended, context):
-        return self.dispatch(
-            'suspender', action.suspender, response, suspended, context=context
-        )
 
     def get_action(self, name):
         for action in self.urlorders:
@@ -148,19 +144,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         while response_queue:
             response = response_queue.pop()
 
-            # break loop
-            if self._dispatch_breaker(action, response, context) is True:
-                crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
-                break
-            
-            # suspend loop
-            suspended = 0 
-            if (suspend := self._dispatch_suspender(action, response, suspended, context)) > 0:
-                while suspended < suspend:
-                    suspended += CRAWL_SUSPENDE_LOOP_POLLING_RATE
-                    crawl_listener(module_name, CRAWLING_SUSPENDED, {'suspended': suspended})
-                    time.sleep(CRAWL_SUSPENDE_LOOP_POLLING_RATE)
-
             is_parsable = True
             for link in self._dispatch_renderer(action, response, _responsemap, context):
                 url = self._resolve_link(link, action, response)
@@ -173,9 +156,16 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 
                 _visited.add(url)
 
-                ## get response
+                ## listen visiting url
                 _visite_count += 1
                 crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
+                
+                ## listen breaking loop
+                if self._dispatch_breaker(action, response, context) is True:
+                    crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
+                    return
+
+                ## get response
                 header_referer = self._dispatch_referer(action, response)
                 sub_response = self._dispatch_response(action, url, header_referer, context=context)
 
