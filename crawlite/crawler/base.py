@@ -94,13 +94,22 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         )
     
     
-    def _dispatch_response(self, action, url, headers, context=None):
-        if action.payloader:
-            payload = self.dispatch('payloader', action.payloader, context=context)
-            response = self.post(url, payload=payload, headers=headers, **action.__dict__)
+    def _dispatch_payloader(self, action, context):
+        if not action.payloader:
+            yield None
+        payloads = self.dispatch('payloader', action.payloader, context=context)
+        if isinstance(payloads, (str, bytes)):
+            yield payloads
+        else:
+            yield from payloads
+        
+    def _dispatch_response(self, action, url, headers, payload=None):
+        if payload:
+            response = self.post(url, payload=payload, headers=headers, **action.as_kwargs())
         else:
             response = self.get(url, headers=headers, **action.as_kwargs())
         return response
+
 
 
     def _dispatch_referer(self, action, response):
@@ -154,8 +163,9 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                 if url in _visited:
                     continue
-                
-                _visited.add(url)
+                    
+                if isinstance(action, UrlPatternAction):
+                    _visited.add(url)
 
                 ## listen visiting url
                 _visite_count += 1
@@ -166,40 +176,45 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                     self.crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
                     return
 
-                ## get response
                 header_referer = self._dispatch_referer(action, response)
-                sub_response = self._dispatch_response(action, url, header_referer, context=context)
+                
+                #check post method
+                for payload in self._dispatch_payloader(action, context):
+                    if payload:
+                        sub_response = self._dispatch_response(action, url, header_referer, payload)
+                    else:
+                        sub_response = self._dispatch_response(action, url, header_referer)  
 
-                ## content type check
-                is_parsable = self._is_parsable(sub_response)
-                soup = self._load_soup(sub_response.content) if is_parsable else None
+                    ## content type check
+                    is_parsable = self._is_parsable(sub_response)
+                    soup = self._load_soup(sub_response.content) if is_parsable else None
 
-                ## respone meta setting
-                meta = ResponseMeta(soup=soup)
-                meta.set_urlutils(link, action)
-                meta.set_responsemap(response, action)
+                    ## respone meta setting
+                    meta = ResponseMeta(soup=soup)
+                    meta.set_urlutils(link, action)
+                    meta.set_responsemap(response, action)
 
-                if response:
-                    meta.update_responsemap(response.crawler.responsemap)
-                setattr(sub_response, 'crawler', meta)
+                    if response:
+                        meta.update_responsemap(response.crawler.responsemap)
+                    setattr(sub_response, 'crawler', meta)
 
-                if _responsemap:
-                    meta.update_responsemap(_responsemap)
+                    if _responsemap:
+                        meta.update_responsemap(_responsemap)
 
-                ## parsing
-                extracted = self._dispatch_extractor(action, meta, context)
-                results = self._dispatch_parser(action, sub_response, extracted, meta, context)
-                self.pipeline(results, action)
+                    ## parsing
+                    extracted = self._dispatch_extractor(action, meta, context)
+                    results = self._dispatch_parser(action, sub_response, extracted, meta, context)
+                    self.pipeline(results, action)
 
-                if is_parsable is True:
-                    if isinstance(action, UrlPatternAction):
-                        if action.recursive:
-                            response_queue.append(sub_response)
-                    self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count)
+                    if is_parsable is True:
+                        if isinstance(action, UrlPatternAction):
+                            if action.recursive:
+                                response_queue.append(sub_response)
+                        if rest: self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count)
 
             # BFO if not passable
             if is_parsable is False:
-                self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count)
+                if rest: self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count)
         
         if _response is None:
             self.crawl_listener(module_name, CRAWLING_COMPLETED, {'visite_count': _visite_count})
