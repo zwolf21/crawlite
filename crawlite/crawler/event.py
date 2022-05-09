@@ -1,4 +1,4 @@
-import functools
+import functools, traceback
 
 
 CRAWLING_STARTED = 'CRAWINGL_STARTED'
@@ -17,9 +17,11 @@ def catch_crawl_exception(func):
             r = func(self, *args, **kwargs)
         except Exception as e:
             module_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
-            crawl_listener = kwargs.get('crawl_listener')
-            crawl_listener(module_name, EXCEPTION_OCCURED, {'exception': e})
-        else:
-            return r
+            self.crawl_listener(
+                module_name, EXCEPTION_OCCURED, 
+                {'exception': e, 'traceback': traceback.format_exc()}
+            )
+            raise
+        return r
     return wrapper
 

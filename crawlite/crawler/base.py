@@ -21,12 +21,13 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
     urlorders = None
 
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, crawl_listener=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.crawl_listener = crawl_listener or (lambda module, event, context: True)
 
 
     def _resolve_link(self, link, action, response=None):
-        if isinstance(action, UrlRenderAction):
+        if isinstance(action, UrlRenderAction): 
             host = action.host or response.url
         else:
             host = response.url
@@ -130,7 +131,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
 
     @catch_crawl_exception
-    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0, crawl_listener=lambda module, event, context=None: True):
+    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0):
 
         module_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
         action, *rest = _urlorders or self.urlorders
@@ -139,7 +140,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         _visited = _visited or set()
         
         if _response is None:
-            crawl_listener(module_name, CRAWLING_STARTED, {'visite_count': _visite_count})
+            self.crawl_listener(module_name, CRAWLING_STARTED, {'visite_count': _visite_count})
 
         while response_queue:
             response = response_queue.pop()
@@ -158,11 +159,11 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                 ## listen visiting url
                 _visite_count += 1
-                crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
+                self.crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
                 
                 ## listen breaking loop
                 if self._dispatch_breaker(action, response, context) is True:
-                    crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
+                    self.crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
                     return
 
                 ## get response
@@ -194,11 +195,11 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                     if isinstance(action, UrlPatternAction):
                         if action.recursive:
                             response_queue.append(sub_response)
-                    self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count, crawl_listener)
+                    self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count)
 
             # BFO if not passable
             if is_parsable is False:
-                self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count, crawl_listener)
+                self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count)
         
         if _response is None:
-            crawl_listener(module_name, CRAWLING_COMPLETED, {'visite_count': _visite_count})
+            self.crawl_listener(module_name, CRAWLING_COMPLETED, {'visite_count': _visite_count})
