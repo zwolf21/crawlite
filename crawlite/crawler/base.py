@@ -96,20 +96,21 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
     
     def _dispatch_payloader(self, action, context):
         if not action.payloader:
-            yield None
-        payloads = self.dispatch('payloader', action.payloader, context=context)
-        if isinstance(payloads, (str, bytes)):
-            yield payloads
+            yield
         else:
-            yield from payloads
+            payloads = self.dispatch('payloader', action.payloader, context=context)
+            if isinstance(payloads, (str, bytes)):
+                yield payloads
+            else:
+                yield from payloads
         
+
     def _dispatch_response(self, action, url, headers, payload=None):
         if payload:
             response = self.post(url, payload=payload, headers=headers, **action.as_kwargs())
         else:
             response = self.get(url, headers=headers, **action.as_kwargs())
         return response
-
 
 
     def _dispatch_referer(self, action, response):
