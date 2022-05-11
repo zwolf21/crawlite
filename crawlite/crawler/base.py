@@ -1,5 +1,4 @@
 from collections import abc, deque
-import time
 from urllib.error import URLError
 
 
@@ -204,8 +203,8 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                     ## parsing
                     extracted = self._dispatch_extractor(action, meta, context)
-                    results = self._dispatch_parser(action, sub_response, extracted, meta, context)
-                    self.pipeline(results, action)
+                    for ret in self._dispatch_parser(action, sub_response, extracted, meta, context):
+                        self.pipeline(ret, action)
 
                     if is_parsable is True:
                         if isinstance(action, UrlPatternAction):
