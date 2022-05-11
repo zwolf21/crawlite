@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 
 
@@ -10,7 +11,7 @@ REQUEST_LOGGING = True
 
 # Request Cache
 REQUEST_CACHE_CACHE_NAME = 'crawlite.sqlite'
-REQUEST_CACHE_BACKEND = 'sqlite'
+REQUEST_CACHE_BACKEND = os.environ.get('REQUEST_CACHE_BACKEND', 'sqlite')
 REQUEST_CACHE_EXPIRE_AFTER = timedelta(days=100)
 REQUEST_CACHE_ALLOWABLE_METHODS = 'GET', 'POST',
 REQUEST_CACHE_ALLOWABLE_CODES = 200,
