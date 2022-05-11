@@ -2,6 +2,7 @@ import inspect
 from collections import abc
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from datetime import datetime, date
 
 from crawlite.utils.regex import strcompile
 from crawlite.utils.module import FromSettingsMixin
@@ -61,6 +62,8 @@ class SoupParser(FromSettingsMixin):
                 extracted = extracted.strip()
         elif isinstance(extracted, (int, float)):
             return extracted
+        elif isinstance(extracted, (datetime, date)):
+            return extracted
         elif isinstance(extracted, (list, tuple, map, filter)) or inspect.isgenerator(extracted):
             extracted_list = [
                 self.validate_extracted(ext, func, meta) for ext in extracted
@@ -72,7 +75,7 @@ class SoupParser(FromSettingsMixin):
             return extracted
         else:
             raise ValueError(
-                f"{func.__name__} must return type of str, list, tuple, mapping, generator or BeautifulSoup Element Tag instance"
+                f"{func.__name__} must return type of str, list, tuple, mapping, generator, date(time), or BeautifulSoup Element Tag instance"
                 f"Not f{type(extracted)}"
             )
 
