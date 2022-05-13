@@ -68,12 +68,12 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         return links      
 
 
-    def _dispatch_extractor(self, action, meta, context):
+    def _dispatch_extractor(self, action, meta, response, context):
         extractset = {}
         if module := action.extractor:
             pat = r'^extract_(?P<ext>\w+)$'
             for g, func in find_function(module, pat):
-                extracted = filter_kwargs(func, meta=meta, soup=meta.soup, context=context)
+                extracted = filter_kwargs(func, meta=meta, soup=meta.soup, response=response, context=context)
                 extractset[g('ext')] = self.validate_extracted(extracted, func, meta)
         return extractset
 
@@ -206,7 +206,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                         meta.update_responsemap(_responsemap)
 
                     ## parsing
-                    extracted = self._dispatch_extractor(action, meta, context)
+                    extracted = self._dispatch_extractor(action, meta, sub_response, context)
                     for ret in self._dispatch_parser(action, sub_response, extracted, meta, context):
                         self.pipeline(ret, action)
 
