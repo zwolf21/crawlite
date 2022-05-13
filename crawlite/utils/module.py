@@ -1,5 +1,6 @@
 import inspect
 from itertools import takewhile
+from collections import abc
 
 from .regex import strcompile
 
@@ -36,9 +37,11 @@ class FromSettingsMixin:
         super().__init__(*args, **kwargs)
         defaults = module2dict(default_settings)
         if settings:
-            customs = module2dict(settings)
+            if isinstance(settings, abc.Mapping):
+                customs = settings
+            else:
+                customs = module2dict(settings)
             defaults.update(customs)
-
         for key, value in defaults.items():
             if not hasattr(self, key):
                 setattr(self, key, value)
