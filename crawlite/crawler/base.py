@@ -83,6 +83,10 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             'parser', action.parser,
             response=response, parsed=extracted, meta=meta, context=context
         )
+        if results is None:
+            return [results]
+        if isinstance(results, (abc.Mapping, str, bytes,)):
+            return [results]
         return results
 
 
