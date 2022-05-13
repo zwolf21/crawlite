@@ -20,10 +20,10 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
     urlorders = None
 
     
-    def __init__(self, *args, crawl_listener=None, **kwargs):
+    def __init__(self, *args, crawl_listener=None, collect_results=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.crawl_listener = crawl_listener or (lambda module, event, context: True)
-
+        self.results = {} if collect_results else None
 
     def _resolve_link(self, link, action, response=None):
         if isinstance(action, UrlRenderAction): 
@@ -209,6 +209,8 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                     extracted = self._dispatch_extractor(action, meta, sub_response, context)
                     for ret in self._dispatch_parser(action, sub_response, extracted, meta, context):
                         self.pipeline(ret, action)
+                        if self.results is not None and ret:
+                            self.results.setdefault(action.name, []).append(ret)                   
 
                     if is_parsable is True:
                         if isinstance(action, UrlPatternAction):
