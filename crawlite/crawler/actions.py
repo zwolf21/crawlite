@@ -1,4 +1,3 @@
-from requests import head
 from ..utils.regex import strcompile
 from ..utils.urls import parse_curl
 
