@@ -1,4 +1,5 @@
 from collections import abc, deque
+import re
 from urllib.error import URLError
 
 
@@ -108,25 +109,31 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 yield from payloads
         
 
-    def _dispatch_response(self, action, url, headers, payload=None):
+    def _dispatch_response(self, action, url, header_referer, payload=None):
+        kwargs = action.as_kwargs()
+        
+        if header_referer:
+            headers = self.get_headers()
+            headers.update(header_referer)
+            kwargs.setdefault('headers', headers)
+
         if payload:
-            response = self.post(url, payload=payload, headers=headers, **action.as_kwargs())
+            response = self.post(url, payload=payload, **kwargs)
         else:
-            response = self.get(url, headers=headers, **action.as_kwargs())
+            response = self.get(url, **kwargs)
         return response
 
 
     def _dispatch_referer(self, action, response):
-        header = self.get_header()
+        headers = self.get_headers()
         if action.referer and response:
             try:
                 referer = response.crawler.responsemap[action.referer]
             except KeyError:
                 raise CannotFindAction(f"An action named {action.referer} could not be found at urlorders.")
             else:
-                header['Referer'] = referer.url
-        return header
-    
+                headers['Referer'] = referer.url
+        return headers
     
     def _dispatch_breaker(self, action, response, context):
         return self.dispatch(

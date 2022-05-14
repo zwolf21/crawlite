@@ -1,5 +1,6 @@
+from requests import head
 from ..utils.regex import strcompile
-
+from ..utils.urls import parse_curl
 
 class BaseAction:
 
@@ -27,7 +28,6 @@ class UrlRenderAction(BaseAction):
                 f"host or urlrenderer must be specified"
             )
 
-    
 
 class UrlPatternAction(BaseAction):
 
@@ -45,17 +45,39 @@ class UrlPatternAction(BaseAction):
 
 
 
+
+
+
+
 def urlrender(
-    host=None, urlrenderer=None,
+    host=None, urlrenderer=None, headers=None, cookies=None,
     payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
     return UrlRenderAction(**locals())
 
 
 def urlpattern(
-    urlpattern=None, urlpattern_renderer=None, remove_duplicates=True, attrs=None, css_selector=None, recursive=False,
+    urlpattern=None, urlpattern_renderer=None, remove_duplicates=True, attrs=None, css_selector=None, recursive=False, headers=None, cookies=None,
     payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
     return UrlPatternAction(**locals())
 
 
+def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, name=None, headers=None, cookies=None, **kwargs):
+    p = parse_curl(curl_template)
+
+    def fromcurl_urlrenderer(url):
+        yield p['url']
+
+    def fromcurl_payloader():
+        yield p['payloads']
+    
+    return urlrender(
+        host=p['url'], 
+        headers=headers or p['headers'],
+        cookies=cookies or p['cookies'],
+        urlrenderer=urlrenderer or fromcurl_urlrenderer,
+        payloader=payloader or fromcurl_payloader,
+        parser=parser,
+        name=name, **kwargs
+    )
 
 
