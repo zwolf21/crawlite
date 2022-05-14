@@ -1,5 +1,8 @@
 import os
 from urllib.parse import urlparse, urlunparse, parse_qsl, parse_qs, urljoin
+from parso import parse
+
+import uncurl
 
 
 def abs_path(root, url):
@@ -51,3 +54,16 @@ def filter_params(url, fields):
     p = urlparse(url)
     args = p.scheme, p.netloc, p.path, p.params, qs, p.fragment
     return urlunparse(args)
+
+
+
+  
+def parse_curl(curl):
+    parsed = uncurl.parse_context(curl)
+    return dict(
+        url=parsed.url,
+        qs=parse_query(parsed.url),
+        headers=dict(parsed.headers),
+        payloads=parsed.data,
+        cookies=dict(parsed.cookies)
+    )

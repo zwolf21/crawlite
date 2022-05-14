@@ -33,7 +33,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.0.14',
+    version='0.0.15',
 
     description='Scraping library by crawling link patterns, url and parsing',
     # long_description=get_long_description(),
@@ -53,6 +53,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
 
     # What does your project relate to?
@@ -70,7 +71,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['requests', 'requests-cache', 'bs4', 'fake-useragent',
+    install_requires=['requests', 'requests-cache', 'bs4', 'fake-useragent', 'uncurl',
     ],
 
     # List additional groups of dependencies here (e.g. development
