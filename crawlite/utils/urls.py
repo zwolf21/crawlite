@@ -1,6 +1,5 @@
 import os
 from urllib.parse import urlparse, urlunparse, parse_qsl, parse_qs, urljoin
-from parso import parse
 
 import uncurl
 

@@ -1,18 +1,15 @@
 from collections import abc, deque
-import re
 from urllib.error import URLError
-
 
 from ..core.http.cached_request import CachedRequests
 from ..core.parser.soup import SoupParser
 from ..utils.urls import queryjoin, urljoin
 from ..utils.module import find_function, filter_kwargs
-from ..settings import CRAWL_SUSPENDE_LOOP_POLLING_RATE
 from .exceptions import *
 from .actions import UrlPatternAction, UrlRenderAction
 from .reducer import ReducerMixin
 from .meta import ResponseMeta
-from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, CRAWLING_SUSPENDED, catch_crawl_exception
+from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, catch_crawl_exception
 
 
 
