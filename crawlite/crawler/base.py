@@ -3,7 +3,7 @@ from urllib.error import URLError
 
 from ..core.http.cached_request import CachedRequests
 from ..core.parser.soup import SoupParser
-from ..utils.urls import queryjoin, urljoin
+from ..utils.urls import queryjoin, urljoin, filter_params
 from ..utils.module import find_function, filter_kwargs
 from .exceptions import *
 from .actions import UrlPatternAction, UrlRenderAction
@@ -32,9 +32,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             return queryjoin(host, link)
         return urljoin(host, link)
 
-
     def _dispatch_renderer(self, action, response, responsemap, context):
-        
         if isinstance(action, UrlRenderAction):
             if urlrenderer := action.urlrenderer:
                 links = self.dispatch(
@@ -63,8 +61,24 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 'urlpattern': urlpattern
             }
             links = self.parse_linkpattern(response.content, **kwargs)
-        return links      
-
+        return links
+    
+    def _dispatch_fields(self, action, url):
+        url = filter_params(url, action.fields)
+        return url
+    
+    def _dispatch_headers(self, action):
+        headers = self.get_headers()
+        headers.update(action.headers or {})
+        return headers
+    
+    def _dispatch_cookies(self, action):
+        cookies = self.get_cookies()
+        cookies.update(action.cookies or {})
+        return cookies
+    
+    def _dispatch_refresh(self, action):
+        return action.refresh
 
     def _dispatch_extractor(self, action, meta, response, context):
         extractset = {}
@@ -106,18 +120,11 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 yield from payloads
         
 
-    def _dispatch_response(self, action, url, header_referer, payload=None):
-        kwargs = action.as_kwargs()
-        
-        if header_referer:
-            headers = self.get_headers()
-            headers.update(header_referer)
-            kwargs.setdefault('headers', headers)
-
-        if payload:
-            response = self.post(url, payload=payload, **kwargs)
+    def _dispatch_response(self, url, payloads, refresh, **kwargs):
+        if payloads:
+            response = self.post(url, data=payloads, **kwargs)
         else:
-            response = self.get(url, **kwargs)
+            response = self.get(url, refresh=refresh, **kwargs)
         return response
 
 
@@ -152,9 +159,10 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
         module_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
         action, *rest = _urlorders or self.urlorders
-
-        response_queue = deque([_response])
         _visited = _visited or set()
+        
+        # urlpattern에 의해 생성된 respons가 재귀적으로 추가될 큐
+        response_queue = deque([_response])
         
         if _response is None:
             self.crawl_listener(module_name, CRAWLING_STARTED, {'visite_count': _visite_count})
@@ -162,9 +170,15 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         while response_queue:
             response = response_queue.pop()
 
+            refresh = self._dispatch_refresh(action)
+            cookies = self._dispatch_cookies(action)
+            headers = self._dispatch_headers(action)
+            headers.update(self._dispatch_referer(action, response))
+
             is_parsable = True
             for link in self._dispatch_renderer(action, response, _responsemap, context):
                 url = self._resolve_link(link, action, response)
+                url = self._dispatch_fields(action, url)
 
                 if not self._dispatch_urlfilter(action, url, _responsemap, context):
                     continue
@@ -175,27 +189,25 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 if isinstance(action, UrlPatternAction):
                     _visited.add(url)
 
-                ## listen visiting url
-                _visite_count += 1
-                self.crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
-                
-                ## listen breaking loop
-                if self._dispatch_breaker(action, response, context) is True:
-                    self.crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
-                    return
-
-                header_referer = self._dispatch_referer(action, response)
-                
                 #check post method
-                for payload in self._dispatch_payloader(action, context):
-                    if payload:
-                        sub_response = self._dispatch_response(action, url, header_referer, payload)
-                    else:
-                        sub_response = self._dispatch_response(action, url, header_referer)  
+                for payloads in self._dispatch_payloader(action, context):
+                    sub_response = self._dispatch_response(url, payloads, refresh, headers=headers, cookies=cookies)
+
+                    ## listen visiting url
+                    _visite_count += 1
+                    self.crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
+                    
+                    ## listen breaking loop
+                    if self._dispatch_breaker(action, sub_response, context) is True:
+                        self.crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
+                        return
 
                     ## content type check
+                    # soup로로 처리 불가능 한것은 content 그대로 넘김
+                    soup = sub_response.content
                     is_parsable = self._is_parsable(sub_response)
-                    soup = self._load_soup(sub_response.content) if is_parsable else None
+                    if is_parsable:
+                        soup = self._load_soup(soup)
 
                     ## respone meta setting
                     meta = ResponseMeta(soup=soup)
