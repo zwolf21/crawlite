@@ -16,7 +16,6 @@ def find_function(module, regex):
             yield g.group, func
 
 
-
 def module2dict(module):
     return dict(takewhile(lambda i: i[0] != '__builtins__', inspect.getmembers(module)))
 
@@ -54,18 +53,20 @@ class FromSettingsMixin:
         if setting_prefix:
             kw = {
                 k.replace(setting_prefix, ''): v for k, v in kw.items()
+                if k.startswith(setting_prefix)
             }
         if lower_key:
             kw = {
                 k.lower(): v for k,v in kw.items()
             }
-        kw = {
-            k: v for k, v in kw.items()
-            if k in sig.parameters
-        }        
+        if not setting_prefix:
+            kw = {
+                k: v for k, v in kw.items()
+                if k in sig.parameters
+            }
         kwargs = {
+            **kwargs,
             **kw,
-            **kwargs
         }
         return callable(*args, **kwargs)
         
