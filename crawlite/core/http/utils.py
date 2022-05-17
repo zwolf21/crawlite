@@ -1,4 +1,4 @@
-import time, sys
+import time
 import functools
 from collections import abc
 from fake_useragent import FakeUserAgent
@@ -40,9 +40,8 @@ def retry(func):
                             time.sleep(1)
                 else:
                     return r
-            print(f"    Request {url} Failed, retry after {sec}sec(trys: {i+1})")
+            print(f" - Request {url} Failed, retry after {sec}sec(trys: {i+1})")
             time.sleep(sec)
         else:
             raise RetryMaxCountDone(f'Request {url} Failed!')
-
     return wrapper

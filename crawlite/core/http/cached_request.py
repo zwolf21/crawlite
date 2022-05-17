@@ -99,7 +99,6 @@ class CachedRequests(FromSettingsMixin):
             print(log)
         return r
         
-
     def get_headers(self):
         return dict(self.headers)
 
