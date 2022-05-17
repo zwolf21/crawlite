@@ -1,5 +1,7 @@
+from pickle import NONE
+import re
 import time
-
+from collections import abc
 import requests_cache
 
 from crawlite.utils.random import get_random_second
@@ -12,16 +14,21 @@ from .exceptions import *
 class CachedRequests(FromSettingsMixin):
     HEADERS = None
     COOKIES = None
+    PROXIES_LIST = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.headers = {}
         self.cookies = {}
+        self.proxy_list = []
         self.headers = self.apply_settings(set_user_agent, header=self.headers)
+        
         if self.HEADERS:
             self.headers.update(self.HEADERS)
         if self.COOKIES:
             self.cookies.update(self.COOKIES)
+        if self.proxy_list:
+            self.proxy_list += self.PROXIES_LIST
 
         self.requests = self.apply_settings(
             requests_cache.CachedSession,
@@ -69,7 +76,7 @@ class CachedRequests(FromSettingsMixin):
         if refresh:
             self._refresh_cache(url)
 
-        r = self.apply_settings(self.requests.get, url, **kwargs)
+        r = self.apply_settings(self.requests.get, url, proxies=self.get_proxies(), **kwargs)
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
@@ -80,7 +87,7 @@ class CachedRequests(FromSettingsMixin):
 
     @retry
     def post(self, url, data, **kwargs):
-        r = self.apply_settings(self.requests.post, url, data=data, **kwargs)
+        r = self.apply_settings(self.requests.post, url, data=data, proxies=self.get_proxies(), **kwargs)
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
@@ -99,3 +106,7 @@ class CachedRequests(FromSettingsMixin):
     
     def set_cookies(self, cookies):
         self.cookies = cookies
+
+    def get_proxies(self):
+        for proxy in self.proxy_list:
+            return proxy
