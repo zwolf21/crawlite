@@ -3,7 +3,6 @@ import time
 import requests_cache
 
 from crawlite.utils.random import get_random_second
-from crawlite.utils.urls import filter_params
 from crawlite.utils.module import FromSettingsMixin
 
 from .utils import retry, set_user_agent
@@ -29,7 +28,7 @@ class CachedRequests(FromSettingsMixin):
             setting_prefix='REQUEST_CACHE_'
         )
 
-    def get_request_log(self, url, from_cache, delay, payloads=None, **kwargs):
+    def get_request_log(self, url, from_cache, delay, payloads=None):
         if from_cache is False:
             if payloads is not None:
                 log = f"POST {url} (delay:{delay}s, payloads:{payloads})"
@@ -65,35 +64,27 @@ class CachedRequests(FromSettingsMixin):
             self.requests.cache.delete_url(response.url)
             raise ResponseHasNoContent(f'Warning: {response.url} has no content!')
     
-    def _gen_request_params(self, url, fields, headers, cookies):
-        url = filter_params(url, fields)
-        headers = headers or self.get_headers()
-        cookies = cookies or self.get_cookies()
-        return url, headers, cookies
-
     @retry
-    def get(self, url, refresh=False, fields=None, headers=None, cookies=None, **kwargs):
-        url, headers, cookies = self._gen_request_params(url, fields, headers, cookies)
+    def get(self, url, refresh, **kwargs):
         if refresh:
             self._refresh_cache(url)
 
-        r = self.apply_settings(self.requests.get, url=url, headers=headers, cookies=cookies)
+        r = self.apply_settings(self.requests.get, url, **kwargs)
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
-            log = self.get_request_log(url, r.from_cache, delay, **kwargs)
+            log = self.get_request_log(url, r.from_cache, delay)
             print(log)
         self._validate_response(r)
         return r
 
     @retry
-    def post(self, url, payload, refresh=True, fields=None, headers=None, cookies=None, **kwargs):
-        url, headers, cookies = self._gen_request_params(url, fields, headers, cookies)
-        r = self.apply_settings(self.requests.post, url=url, data=payload, headers=headers, cookies=cookies)
+    def post(self, url, data, **kwargs):
+        r = self.apply_settings(self.requests.post, url, data=data, **kwargs)
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
-            log = self.get_request_log(url, r.from_cache, delay, len(payload), **kwargs)
+            log = self.get_request_log(url, r.from_cache, delay, len(data))
             print(log)
         return r
 
