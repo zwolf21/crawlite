@@ -23,9 +23,10 @@ class CachedRequests(FromSettingsMixin):
             self.headers.update(self.HEADERS)
         if self.COOKIES:
             self.cookies.update(self.COOKIES)
+
         if hasattr(self, 'PROXIES_LIST'):
             self.proxies_list = self.PROXIES_LIST
-
+        
         self.requests = self.apply_settings(
             requests_cache.CachedSession,
             setting_prefix='REQUEST_CACHE_'
@@ -41,8 +42,6 @@ class CachedRequests(FromSettingsMixin):
                 log = f"GET {url} (delay:{delay}s)"
                 if proxies is not None:
                     log = f"GET {url} Proxy:{proxies} (delay:{delay}s)"
-            
-
         else:
             if payloads is not None:
                 log = f"POST {url} From Cache (payloads:{payloads})"
@@ -79,7 +78,9 @@ class CachedRequests(FromSettingsMixin):
             self._refresh_cache(url)
 
         proxies = self.get_proxies()
-        r = self.apply_settings(self.requests.get, url, proxies=proxies, **kwargs)
+        r = self.apply_settings(
+            self.requests.get, url, setting_prefix='REQUESTS_', proxies=proxies, **kwargs
+        )
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
@@ -91,7 +92,9 @@ class CachedRequests(FromSettingsMixin):
     @retry
     def post(self, url, data, **kwargs):
         proxies = self.get_proxies()
-        r = self.apply_settings(self.requests.post, url, data=data, proxies=proxies, **kwargs)
+        r = self.apply_settings(
+            self.requests.post, url, setting_prefix='REQUESTS_', data=data, proxies=proxies, **kwargs
+        )
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
