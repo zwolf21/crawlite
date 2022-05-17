@@ -4,8 +4,9 @@ from datetime import timedelta
 
 # Request
 USER_AGENT_NAME = 'chrome'
-REQUEST_DELAY = 0.5
-RETRY_INTERVAL_SECONDS = 10, 100, 1000
+REQUEST_DELAY = 0.5, 1.5
+RETRY_INTERVAL_SECONDS = 10, 15, 20
+
 REQUEST_LOGGING = True
 
 

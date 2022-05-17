@@ -1,7 +1,4 @@
-from pickle import NONE
-import re
 import time
-from collections import abc
 import requests_cache
 
 from crawlite.utils.random import get_random_second
@@ -14,33 +11,38 @@ from .exceptions import *
 class CachedRequests(FromSettingsMixin):
     HEADERS = None
     COOKIES = None
-    PROXIES_LIST = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.headers = {}
         self.cookies = {}
-        self.proxy_list = []
+        self.proxies_list = []
         self.headers = self.apply_settings(set_user_agent, header=self.headers)
         
         if self.HEADERS:
             self.headers.update(self.HEADERS)
         if self.COOKIES:
             self.cookies.update(self.COOKIES)
-        if self.proxy_list:
-            self.proxy_list += self.PROXIES_LIST
+        if hasattr(self, 'PROXIES_LIST'):
+            self.proxies_list = self.PROXIES_LIST
 
         self.requests = self.apply_settings(
             requests_cache.CachedSession,
             setting_prefix='REQUEST_CACHE_'
         )
 
-    def get_request_log(self, url, from_cache, delay, payloads=None):
+    def get_request_log(self, url, from_cache, delay, payloads=None, proxies=None):
         if from_cache is False:
             if payloads is not None:
                 log = f"POST {url} (delay:{delay}s, payloads:{payloads})"
+                if proxies is not None:
+                    log = f"POST {url} Proxy:{proxies} (delay:{delay}s, payloads:{payloads})"
             else:
                 log = f"GET {url} (delay:{delay}s)"
+                if proxies is not None:
+                    log = f"GET {url} Proxy:{proxies} (delay:{delay}s)"
+            
+
         else:
             if payloads is not None:
                 log = f"POST {url} From Cache (payloads:{payloads})"
@@ -76,24 +78,27 @@ class CachedRequests(FromSettingsMixin):
         if refresh:
             self._refresh_cache(url)
 
-        r = self.apply_settings(self.requests.get, url, proxies=self.get_proxies(), **kwargs)
+        proxies = self.get_proxies()
+        r = self.apply_settings(self.requests.get, url, proxies=proxies, **kwargs)
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
-            log = self.get_request_log(url, r.from_cache, delay)
+            log = self.get_request_log(url, r.from_cache, delay, proxies=proxies)
             print(log)
         self._validate_response(r)
         return r
 
     @retry
     def post(self, url, data, **kwargs):
-        r = self.apply_settings(self.requests.post, url, data=data, proxies=self.get_proxies(), **kwargs)
+        proxies = self.get_proxies()
+        r = self.apply_settings(self.requests.post, url, data=data, proxies=proxies, **kwargs)
         r.raise_for_status()
         delay = self._delay_control(r)
         if self.REQUEST_LOGGING is True:
-            log = self.get_request_log(url, r.from_cache, delay, len(data))
+            log = self.get_request_log(url, r.from_cache, delay, len(data), proxies=proxies)
             print(log)
         return r
+        
 
     def get_headers(self):
         return dict(self.headers)
@@ -108,5 +113,12 @@ class CachedRequests(FromSettingsMixin):
         self.cookies = cookies
 
     def get_proxies(self):
-        for proxy in self.proxy_list:
-            return proxy
+        for proxies in self.proxies_list:
+            return proxies
+    
+    def rotate_proxies(self):
+        if self.proxies_list:
+            h, *r = self.proxies_list
+            self.proxies_list = [*r, h]
+            return self.proxies_list[0]
+    
