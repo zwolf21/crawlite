@@ -1,5 +1,10 @@
+from glob import glob
+from pathlib import Path
+
 from ..utils.regex import strcompile
 from ..utils.urls import parse_curl
+
+
 
 class BaseAction:
 
@@ -17,7 +22,6 @@ class BaseAction:
 
 
 
-
 class UrlRenderAction(BaseAction):
 
     def __init__(self, **kwargs):
@@ -26,6 +30,7 @@ class UrlRenderAction(BaseAction):
             raise NotImplementedError(
                 f"host or urlrenderer must be specified"
             )
+
 
 
 class UrlPatternAction(BaseAction):
@@ -44,19 +49,15 @@ class UrlPatternAction(BaseAction):
 
 
 
-
-
-
-
 def urlrender(
     host=None, urlrenderer=None, headers=None, cookies=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None):
     return UrlRenderAction(**locals())
 
 
 def urlpattern(
     urlpattern=None, urlpattern_renderer=None, remove_duplicates=True, attrs=None, css_selector=None, recursive=False, headers=None, cookies=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None):
     return UrlPatternAction(**locals())
 
 
@@ -80,3 +81,21 @@ def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, 
     )
 
 
+def frompath(path, path_renderer=None, parser=None, name=None, refresh=True, delay=0, **kwargs):
+    def urlrenderer(url):
+        if url.startswith('file:///'):
+            yield url
+        
+        for p in glob(url):
+            p = Path(p).absolute().as_uri()
+            yield p   
+    
+    return urlrender(
+        host=path,
+        urlrenderer=path_renderer or urlrenderer,
+        parser=parser,
+        name=name,
+        refresh=refresh,
+        delay=delay,
+        **kwargs
+    )

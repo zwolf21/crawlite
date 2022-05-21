@@ -1,4 +1,6 @@
+from logging import warning
 import time
+from warnings import warn
 import requests_cache
 
 from crawlite.utils.random import get_random_second
@@ -6,6 +8,7 @@ from crawlite.utils.module import FromSettingsMixin
 
 from .utils import retry, set_user_agent
 from .exceptions import *
+from .adapters import CrawliteFileAdapter
 
 
 class CachedRequests(FromSettingsMixin):
@@ -31,6 +34,7 @@ class CachedRequests(FromSettingsMixin):
             requests_cache.CachedSession,
             setting_prefix='REQUEST_CACHE_'
         )
+        self.requests.mount('file:///', CrawliteFileAdapter())
 
     def get_request_log(self, url, from_cache, delay, payloads=None, proxies=None):
         if from_cache is False:
@@ -56,47 +60,49 @@ class CachedRequests(FromSettingsMixin):
         else:
             self.requests.remove_expired_responses()
 
-    def _delay_control(self, response):
+    def _delay_control(self, response, delay):
         if response.from_cache is False:
-            delay = self._get_delay()
+            delay = self._get_delay(delay)
             time.sleep(delay)
             return delay
 
-    def _get_delay(self):
-        if isinstance(self.REQUEST_DELAY, (tuple, list,)) and len(self.REQUEST_DELAY) == 2:
-            return get_random_second(*self.REQUEST_DELAY)
-        return self.REQUEST_DELAY
+    def _get_delay(self, delay):
+        if delay is None:
+            if isinstance(self.REQUEST_DELAY, (tuple, list,)) and len(self.REQUEST_DELAY) == 2:
+                return get_random_second(*self.REQUEST_DELAY)
+            return self.REQUEST_DELAY
+        return delay
 
     def _validate_response(self, response):
+        pass
         if not response.content:
             self.requests.cache.delete_url(response.url)
-            raise ResponseHasNoContent(f'Warning: {response.url} has no content!')
+            warning(f'Warning: {response.url} has no content!')
+            
     
-    @retry
-    def get(self, url, refresh, **kwargs):
+    # @retry
+    def get(self, url, refresh, delay=None, **kwargs):
         if refresh:
             self._refresh_cache(url)
-
         proxies = self.get_proxies()
         r = self.apply_settings(
             self.requests.get, url, setting_prefix='REQUESTS_', proxies=proxies, **kwargs
         )
         r.raise_for_status()
-        delay = self._delay_control(r)
+        delay = self._delay_control(r, delay)
         if self.REQUEST_LOGGING is True:
             log = self.get_request_log(url, r.from_cache, delay, proxies=proxies)
             print(log)
-        self._validate_response(r)
         return r
 
     @retry
-    def post(self, url, data, **kwargs):
+    def post(self, url, data, delay=None, **kwargs):
         proxies = self.get_proxies()
         r = self.apply_settings(
             self.requests.post, url, setting_prefix='REQUESTS_', data=data, proxies=proxies, **kwargs
         )
         r.raise_for_status()
-        delay = self._delay_control(r)
+        delay = self._delay_control(r, delay)
         if self.REQUEST_LOGGING is True:
             log = self.get_request_log(url, r.from_cache, delay, len(data), proxies=proxies)
             print(log)

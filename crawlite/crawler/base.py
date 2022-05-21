@@ -191,7 +191,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                 #check post method
                 for payloads in self._dispatch_payloader(action, context):
-                    sub_response = self._dispatch_response(url, payloads, refresh, headers=headers, cookies=cookies)
+                    sub_response = self._dispatch_response(url, payloads, refresh, headers=headers, cookies=cookies, delay=action.delay)
 
                     ## listen visiting url
                     _visite_count += 1
