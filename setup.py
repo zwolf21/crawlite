@@ -71,7 +71,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['requests', 'requests-cache', 'bs4', 'fake-useragent', 'uncurl',
+    install_requires=['requests', 'requests-cache', 'bs4', 'fake-useragent', 'uncurl', 'requests-file',
     ],
 
     # List additional groups of dependencies here (e.g. development
