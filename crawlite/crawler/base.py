@@ -36,8 +36,8 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         if isinstance(action, UrlRenderAction):
             if urlrenderer := action.urlrenderer:
                 links = self.dispatch(
-                    'urlrenderer', urlrenderer, action.host,
-                    parent_response=response, responsemap=responsemap, context=context
+                    'urlrenderer', urlrenderer,
+                    url=action.host, parent_response=response, responsemap=responsemap, context=context
                 )                
                 if links is None:
                     raise UrlRendererError(f"{urlrenderer} must return or yield url, link or params, not {links}")
@@ -49,7 +49,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             if urlpattern_renderer := action.urlpattern_renderer:
                 urlpattern = self.dispatch(
                     'urlpattern_renderer', urlpattern_renderer,
-                    action.urlpattern, parent_response=response, responsemap=responsemap, context=context
+                    pattern=action.urlpattern, parent_response=response, responsemap=responsemap, context=context
                 )
                 if urlpattern is None:
                     raise UrlRendererError(f"{urlpattern_renderer} must return regex pattern of url, not {urlpattern}")
