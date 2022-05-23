@@ -61,7 +61,10 @@ def urlpattern(
     return UrlPatternAction(**locals())
 
 
-def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, name=None, headers=None, cookies=None, **kwargs):
+def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, name=None, headers=None, cookies=None, remove_line='\n', **kwargs):
+    if remove_line:
+        curl_template = curl_template.replace(remove_line, '')
+        
     p = parse_curl(curl_template)
 
     def fromcurl_urlrenderer(url):
@@ -81,12 +84,12 @@ def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, 
     )
 
 
-def frompath(path, path_renderer=None, parser=None, name=None, refresh=True, delay=0, **kwargs):
+def frompath(path, path_renderer=None, parser=None, name=None, refresh=True, delay=0, recursive=True, **kwargs):
     def urlrenderer(url):
         if url.startswith('file:///'):
             yield url
         
-        for p in glob(url):
+        for p in glob(url, recursive=recursive):
             p = Path(p).absolute().as_uri()
             yield p   
     
