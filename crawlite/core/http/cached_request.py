@@ -36,21 +36,36 @@ class CachedRequests(FromSettingsMixin):
         )
         self.requests.mount('file:///', CrawliteFileAdapter())
 
-    def get_request_log(self, url, from_cache, delay, payloads=None, proxies=None):
-        if from_cache is False:
-            if payloads is not None:
-                log = f"POST {url} (delay:{delay}s, payloads:{payloads})"
-                if proxies is not None:
-                    log = f"POST {url} Proxy:{proxies} (delay:{delay}s, payloads:{payloads})"
-            else:
-                log = f"GET {url} (delay:{delay}s)"
-                if proxies is not None:
-                    log = f"GET {url} Proxy:{proxies} (delay:{delay}s)"
+    def get_request_log(self, method, url, from_cache, delay, payloads=None, proxies=None):
+        METHOD = 'GET'
+        if method == 'post':
+            METHOD = "POST"
+
+        PROXIES = ''
+        if proxies:
+            PROXIES = f"Proxy:{proxies}"
+        
+        FROM_CACHE = ''
+        DELAY = ''
+        if from_cache is True:
+            FROM_CACHE = 'From Cache'
         else:
-            if payloads is not None:
-                log = f"POST {url} From Cache (payloads:{payloads})"
-            else:
-                log = f"GET {url} From Cache"
+            DELAY = f"delay:{delay}s"
+
+        prefix = ' '.join(filter(None, [METHOD, url, PROXIES, FROM_CACHE]))
+
+        PAYLOADS = ''
+        if payloads is not None:
+            PAYLOADS = f"payloads:{payloads}"
+        
+        if postfix:= list(filter(None, [DELAY, PAYLOADS])):
+            postfix = ', '.join(postfix)
+            postfix = f' ({postfix})'
+        else:
+            postfix = ''
+
+        log = f"{prefix}{postfix}"
+
         return log
 
     def _refresh_cache(self, url, method='get'):
@@ -80,7 +95,7 @@ class CachedRequests(FromSettingsMixin):
             warning(f'Warning: {response.url} has no content!')
             
     
-    # @retry
+    @retry
     def get(self, url, refresh, delay=None, **kwargs):
         if refresh:
             self._refresh_cache(url)
@@ -91,7 +106,7 @@ class CachedRequests(FromSettingsMixin):
         r.raise_for_status()
         delay = self._delay_control(r, delay)
         if self.REQUEST_LOGGING is True:
-            log = self.get_request_log(url, r.from_cache, delay, proxies=proxies)
+            log = self.get_request_log('get', url, r.from_cache, delay, proxies=proxies)
             print(log)
         return r
 
@@ -104,7 +119,7 @@ class CachedRequests(FromSettingsMixin):
         r.raise_for_status()
         delay = self._delay_control(r, delay)
         if self.REQUEST_LOGGING is True:
-            log = self.get_request_log(url, r.from_cache, delay, len(data), proxies=proxies)
+            log = self.get_request_log('post', url, r.from_cache, delay, len(data or b''), proxies=proxies)
             print(log)
         return r
         

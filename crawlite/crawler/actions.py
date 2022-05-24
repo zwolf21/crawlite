@@ -51,20 +51,21 @@ class UrlPatternAction(BaseAction):
 
 def urlrender(
     host=None, urlrenderer=None, headers=None, cookies=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None, method=None):
     return UrlRenderAction(**locals())
 
 
 def urlpattern(
     urlpattern=None, urlpattern_renderer=None, remove_duplicates=True, attrs=None, css_selector=None, recursive=False, headers=None, cookies=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None, method=None):
     return UrlPatternAction(**locals())
 
 
-def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, name=None, headers=None, cookies=None, remove_line='\n', **kwargs):
+def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, name=None, headers=None, cookies=None, remove_line='\n', method=None, **kwargs):
     if remove_line:
         curl_template = curl_template.replace(remove_line, '')
-        
+    
+
     p = parse_curl(curl_template)
 
     def fromcurl_urlrenderer(url):
@@ -79,6 +80,7 @@ def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, 
         cookies=cookies or p['cookies'],
         urlrenderer=urlrenderer or fromcurl_urlrenderer,
         payloader=payloader or fromcurl_payloader,
+        method= method or p['method'],
         parser=parser,
         name=name, **kwargs
     )

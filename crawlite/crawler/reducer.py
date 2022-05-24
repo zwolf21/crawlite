@@ -1,3 +1,4 @@
+from cgitb import reset
 from ..utils.module import filter_kwargs
 
 
@@ -38,7 +39,7 @@ class ReducerMixin:
                 'urlrenderer': self.default_urlrenderer,
                 'urlpattern_renderer': self.default_pattern_renderer,
                 'breaker': self.default_breaker,
-                'payloader': self.default_payloader, 
+                'payloader': self.default_payloader,
             }[type]
 
         return filter_kwargs(f, *args, **kwargs)
@@ -55,7 +56,7 @@ class ReducerMixin:
     
     def default_urlrenderer(self, host, response, context):
         return host
-    
+        
     def default_pattern_renderer(self, pattern, resposne, context):
         return pattern
     

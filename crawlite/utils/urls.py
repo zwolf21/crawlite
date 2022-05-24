@@ -61,6 +61,7 @@ def parse_curl(curl):
     parsed = uncurl.parse_context(curl)
     return dict(
         url=parsed.url,
+        method=parsed.method,
         qs=parse_query(parsed.url),
         headers=dict(parsed.headers),
         payloads=parsed.data,
