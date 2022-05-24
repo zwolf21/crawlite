@@ -65,7 +65,6 @@ def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, 
     if remove_line:
         curl_template = curl_template.replace(remove_line, '')
     
-
     p = parse_curl(curl_template)
 
     def fromcurl_urlrenderer(url):

@@ -2,21 +2,29 @@ import json
 from functools import wraps
 from itertools import dropwhile
 
+from bs4.element import Tag
+
 
 def prettify_content(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         content = func(*args, **kwargs)
+
+        if isinstance(content, Tag):
+            content = content.get_text()
+
         if not content:
             return content
-            
+
         trantab = {
             '<br>': '',
             '</br>': '\n',
             '<p>':'',
             '</p>': '\n',
             '\t': '',
-            '\u200b': ''
+            '\u200b': '',
+            '\xa0': '',
+            
         }
         for tok, repl in trantab.items():
             content = content.replace(tok, repl)
