@@ -119,19 +119,9 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             else:
                 yield from payloads
         
-
-    def _dispatch_response(self, url, payloads, refresh, method, **kwargs):
-        if m:= method:
-            m = m.lower()
-        else:
-            m = 'post' if payloads else 'get'
-
-        if m == 'get':
-            response = self.get(url, refresh=refresh, **kwargs)
-        else:
-            response = self.post(url, data=payloads, **kwargs)
-            
-        return response
+    def _dispatch_response(self, method, refresh, delay, **kwargs):
+        method = method or ('post' if kwargs.get('data') else 'get')
+        return self.fetch(method, refresh, delay, **kwargs)
 
 
     def _dispatch_referer(self, action, response):
@@ -197,7 +187,10 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                 #check post method
                 for payloads in self._dispatch_payloader(action, context):
-                    sub_response = self._dispatch_response(url, payloads, refresh, action.method, headers=headers, cookies=cookies, delay=action.delay)
+                    sub_response = self._dispatch_response(
+                        action.method, refresh, self.get_delay(action.delay),
+                        url=url, data=payloads, headers=headers, cookies=cookies,
+                    )
 
                     ## listen visiting url
                     _visite_count += 1
