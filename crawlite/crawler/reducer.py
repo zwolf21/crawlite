@@ -7,24 +7,23 @@ class ReducerMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def get_method(self, func, kind):
-        if callable(func):
-            return func
-        if isinstance(func, str):
-            if hasattr(self, func):
-                return getattr(self, func)     
-        return {
-            'urlfilter': self.default_urlfilter,
-            'parser': self.default_parser,
-            'urlrenderer': self.default_urlrenderer,
-            'urlpattern_renderer': self.default_pattern_renderer,
-            'breaker': self.default_breaker,
-            'payloader': self.default_payloader
-        }[kind]
+    # def get_method(self, func, kind):
+    #     if callable(func):
+    #         return func
+    #     if isinstance(func, str):
+    #         if hasattr(self, func):
+    #             return getattr(self, func)     
+    #     return {
+    #         'urlfilter': self.default_urlfilter,
+    #         'parser': self.default_parser,
+    #         'urlrenderer': self.default_urlrenderer,
+    #         'urlpattern_renderer': self.default_pattern_renderer,
+    #         'breaker': self.default_breaker,
+    #         'payloader': self.default_payloader
+    #     }[kind]
     
     
     def dispatch(self, type, func, *args, **kwargs):
-        
         if callable(func):
             f = func
         elif isinstance(func, str):
@@ -40,6 +39,7 @@ class ReducerMixin:
                 'urlpattern_renderer': self.default_pattern_renderer,
                 'breaker': self.default_breaker,
                 'payloader': self.default_payloader,
+                'curlrenderer': self.default_curlrenderer,
             }[type]
 
         return filter_kwargs(f, *args, **kwargs)
@@ -56,6 +56,9 @@ class ReducerMixin:
     
     def default_urlrenderer(self, host, response, context):
         return host
+    
+    def default_curlrenderer(self, curl, resposne, context):
+        return curl
         
     def default_pattern_renderer(self, pattern, resposne, context):
         return pattern

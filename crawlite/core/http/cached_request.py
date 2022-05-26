@@ -1,4 +1,4 @@
-import requests_cache
+import requests_cache, uncurl
 
 from crawlite.utils.random import get_random_second
 from crawlite.utils.module import FromSettingsMixin
@@ -6,7 +6,7 @@ from crawlite.utils.module import FromSettingsMixin
 from .utils import set_user_agent
 from .exceptions import *
 from .adapters import CrawliteFileAdapter
-from .helper import logging, delaying, retrying
+from .helper import trace, retry
 
 
 
@@ -43,21 +43,28 @@ class CachedRequests(FromSettingsMixin):
             return self.REQUEST_DELAY
         return delay
     
-    @retrying
-    @delaying
-    @logging
-    def fetch(self, method, refresh, delay, proxies=None, logging=True, **kwargs):
 
+    @retry
+    @trace
+    def fetch(self, method, refresh, delay, proxies=None, logging=True, **kwargs):
         if refresh:
             cache_key = self.requests.cache.create_key(method=method, **kwargs)
             self.requests.cache.delete(cache_key)
 
         proxies = proxies or self.get_proxies()
 
-        r = self.apply_settings(self.requests.request, setting_prefix='REQUESTS_', method=method, **kwargs)
-
+        r = self.apply_settings(self.requests.request, setting_prefix='REQUESTS_', method=method, proxies=proxies, **kwargs)
         r.raise_for_status()
         return r
+    
+
+    def from_curl(self, command, refresh, delay, proxies=None, logging=True):
+        p = uncurl.parse_context(command)
+        return self.fetch(
+            p.method, refresh, delay, proxies=proxies, logging=logging,
+            url=p.url, data=p.data, headers=p.headers, cookies=p.cookies
+        )
+
         
     def get_headers(self):
         return dict(self.headers)

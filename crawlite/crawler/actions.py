@@ -1,5 +1,6 @@
 from glob import glob
 from pathlib import Path
+from threading import local
 
 from ..utils.regex import strcompile
 from ..utils.urls import parse_curl
@@ -48,6 +49,16 @@ class UrlPatternAction(BaseAction):
         return strcompile(pattern)
 
 
+class CurlAction(BaseAction):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        if not (self.curl or self.curlrenderer):
+            raise NotImplementedError(
+                f"curl or curl_renderer must be specified"
+            )
+
 
 def urlrender(
     host=None, urlrenderer=None, headers=None, cookies=None,
@@ -60,29 +71,10 @@ def urlpattern(
     payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None, method=None):
     return UrlPatternAction(**locals())
 
+def curl(
+    curl=None, curlrenderer=None, parser=None, extractor=None, urlfilter=None, breaker=None, name=None, refresh=False, delay=None):
+    return CurlAction(**locals())
 
-def fromcurl(curl_template=None, payloader=None, urlrenderer=None, parser=None, name=None, headers=None, cookies=None, remove_line='\n', method=None, **kwargs):
-    if remove_line:
-        curl_template = curl_template.replace(remove_line, '')
-    
-    p = parse_curl(curl_template)
-
-    def fromcurl_urlrenderer(url):
-        yield p['url']
-
-    def fromcurl_payloader():
-        yield p['payloads']
-    
-    return urlrender(
-        host=p['url'], 
-        headers=headers or p['headers'],
-        cookies=cookies or p['cookies'],
-        urlrenderer=urlrenderer or fromcurl_urlrenderer,
-        payloader=payloader or fromcurl_payloader,
-        method= method or p['method'],
-        parser=parser,
-        name=name, **kwargs
-    )
 
 
 def frompath(path, path_renderer=None, parser=None, name=None, refresh=True, delay=0, recursive=True, **kwargs):

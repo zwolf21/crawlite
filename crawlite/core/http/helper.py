@@ -63,7 +63,7 @@ def _get_after_request_log(response, delay, elasped):
     return log
 
 
-def logging(func):
+def trace(func):
     @functools.wraps(func)
     def wrapper(self, method, refresh, delay,**kwargs):
         try:
@@ -85,17 +85,8 @@ def logging(func):
     return wrapper
 
 
-def delaying(func):
-    @functools.wraps(func)
-    def wrapper(self, method, refresh, delay,**kwargs):
-        r = func(self, method, refresh, delay, **kwargs)
-        if not r.from_cache:
-            time.sleep(delay)
-        return r
-    return wrapper
 
-
-def retrying(func):
+def retry(func):
     @functools.wraps(func)
     def wrapper(self, *args,**kwargs):
         url = kwargs.get('url')
