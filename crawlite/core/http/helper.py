@@ -67,16 +67,20 @@ def logging(func):
     @functools.wraps(func)
     def wrapper(self, method, refresh, delay,**kwargs):
         try:
-            print(_get_pre_request_log(method, **kwargs), '=>', end=' ')
+            pre_log = _get_pre_request_log(method, **kwargs)
+            print(pre_log, '\r', end='', sep='...')
             st = time.time()
             r = func(self, method, refresh, delay, **kwargs)
+            et = time.time()
+            elapsed = round(et-st, 2)
+            log = f'{pre_log} => {_get_after_request_log(r, delay, elapsed)}'
+            print(log)
+            if not r.from_cache:
+                time.sleep(delay)
         except:
             print('')
             raise
         else:
-            et = time.time()
-            elapsed = round(et-st, 2)
-            print(_get_after_request_log(r, delay, elapsed))
             return r
     return wrapper
 
@@ -89,7 +93,6 @@ def delaying(func):
             time.sleep(delay)
         return r
     return wrapper
-
 
 
 def retrying(func):
