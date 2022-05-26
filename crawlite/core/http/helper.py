@@ -5,7 +5,7 @@ from .exceptions import RetryMaxCountDone
 
 
 
-def transform_bytes_length(length):
+def transform_bytes_length(length, ndigits=None):
     k = 1024
     m = k**2
     g = k**3
@@ -22,7 +22,7 @@ def transform_bytes_length(length):
     else:
         unit = 'bytes'
         v = length
-    return f'{round(v)}{unit}'
+    return f'{round(v, ndigits)}{unit}'
 
 
 def _get_pre_request_log(method, url, data=None, proxies=None, **extra):
@@ -32,9 +32,7 @@ def _get_pre_request_log(method, url, data=None, proxies=None, **extra):
     
     prefix = ' '.join(filter(None, [METHOD, url, PROXIES]))
 
-    payloads = len(data) if data else None
-
-    PAYLOADS = f"payloads:{payloads}" if (data:=data) and (payloads := len(data)) else ''
+    PAYLOADS = f"payloads:{transform_bytes_length(payloads, 2)}" if (data:=data) and (payloads := len(data)) else ''
     
     if postfix:= list(filter(None, [PAYLOADS])):
         postfix = ', '.join(postfix)
