@@ -1,14 +1,13 @@
 from collections import abc, deque
 from urllib.error import URLError
-
-from attr import has
+from pathlib import Path
 
 from ..core.http.cached_request import CachedRequests
 from ..core.parser.soup import SoupParser
 from ..utils.urls import queryjoin, urljoin, filter_params
 from ..utils.module import find_function, filter_kwargs
 from .exceptions import *
-from .actions import UrlPatternAction, UrlRenderAction, CurlAction
+from .actions import UrlPatternAction, UrlRenderAction, CurlAction, FileAction
 from .reducer import ReducerMixin
 from .meta import ResponseMeta
 from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, catch_crawl_exception
@@ -26,10 +25,15 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         self.results = {} if collect_results else None
 
     def _resolve_link(self, link, action, response=None):
+        if isinstance(action, FileAction):
+            if link.startswith('file:///'):
+                return link
+            else:
+                return Path(link).absolute().as_uri()
 
         if isinstance(action, CurlAction):
-            link = link.replace('\n', '')
-            return link
+            curl = link.replace('\n', '')
+            return curl
 
         if isinstance(action, UrlRenderAction): 
             host = action.host or response.url
@@ -80,6 +84,17 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             elif curl := action.curl:
                 curls = [curl]
             return curls
+        elif isinstance(action, FileAction):
+            if pathrenderer := action.pathrenderer:
+                paths = self.dispatch(
+                    'pathrenderer', pathrenderer,
+                    path=action.path, parent_resposne=response, responsemap=responsemap, context=context
+                )
+            elif path := action.path:
+                paths = [path]
+            return paths
+        else:
+            raise CannotFindAction(f'{action} is not memeber of action')
                 
     
     def _dispatch_fields(self, action, url):

@@ -3,7 +3,6 @@ from pathlib import Path
 from threading import local
 
 from ..utils.regex import strcompile
-from ..utils.urls import parse_curl
 
 
 
@@ -49,6 +48,7 @@ class UrlPatternAction(BaseAction):
         return strcompile(pattern)
 
 
+
 class CurlAction(BaseAction):
 
     def __init__(self, **kwargs):
@@ -60,38 +60,47 @@ class CurlAction(BaseAction):
             )
 
 
+
+class FileAction(BaseAction):
+    method = 'get'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if not (self.path or self.pathrenderer):
+            raise NotImplementedError(
+                f"path or pathrenderer must be specified"
+            )
+        self._check_globpath()
+
+    def _check_globpath(self):
+        if '*' in self.path:
+            self.pathrenderer = self.pathrenderer or (lambda: glob(self.path))
+            
+
+
+
+
 def urlrender(
     host=None, urlrenderer=None, headers=None, cookies=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None, method=None):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, referer=None, name=None, refresh=False, delay=None, method=None):
     return UrlRenderAction(**locals())
 
 
 def urlpattern(
     urlpattern=None, urlpattern_renderer=None, remove_duplicates=True, attrs=None, css_selector=None, recursive=False, headers=None, cookies=None,
-    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, contentfile=False, referer=None, name=None, refresh=False, delay=None, method=None):
+    payloader=None, parser=None, extractor=None, urlfilter=None, breaker=None, fields=None, referer=None, name=None, refresh=False, delay=None, method=None):
     return UrlPatternAction(**locals())
 
-def curl(
-    curl=None, curlrenderer=None, parser=None, extractor=None, urlfilter=None, breaker=None, name=None, refresh=False, delay=None):
+
+def curl(curl=None, curlrenderer=None, parser=None, extractor=None, breaker=None, name=None, refresh=False, delay=None):
+    '''bash curl command needed
+    '''
     return CurlAction(**locals())
 
 
+def file(path=None, pathrenderer=None, parser=None, extractor=None, breaker=None, name=None, refresh=False, delay=None):
+    ''' path=file:///D:/dev/crawlite/test/logparser/access.log (file uri)
+        path=*/*/access.log (glob exp)
+    '''
+    return FileAction(**locals())
 
-def frompath(path, path_renderer=None, parser=None, name=None, refresh=True, delay=0, recursive=True, **kwargs):
-    def urlrenderer(url):
-        if url.startswith('file:///'):
-            yield url
-        
-        for p in glob(url, recursive=recursive):
-            p = Path(p).absolute().as_uri()
-            yield p   
-    
-    return urlrender(
-        host=path,
-        urlrenderer=path_renderer or urlrenderer,
-        parser=parser,
-        name=name,
-        refresh=refresh,
-        delay=delay,
-        **kwargs
-    )

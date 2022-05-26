@@ -59,7 +59,6 @@ def _get_after_request_log(response, delay, elasped):
         log = f'{log} (From Cache)'
     else:
         log = f'{log} (delay:{delay or 0}s)'
-
     return log
 
 

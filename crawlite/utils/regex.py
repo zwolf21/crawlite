@@ -14,5 +14,4 @@ def extgroup(exp, target, asdict=False):
         if asdict:
             return g.groupdict()
         return g.group
-    # raise ValueError(f"{exp} not matched on {target}")
 

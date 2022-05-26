@@ -7,6 +7,7 @@ class CannotFindAction(BaseCrawlerException):
     '''cannot find action
     '''
 
+
 class CannotParseResponse(BaseCrawlerException):
     '''cannot parsable response
     '''
@@ -28,4 +29,3 @@ class UrlOrderError(BaseCrawlerException):
 class UrlRendererError(BaseCrawlerException):
     '''url renderer retun value type
     '''
-

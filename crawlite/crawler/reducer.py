@@ -1,4 +1,4 @@
-from cgitb import reset
+from glob import glob
 from ..utils.module import filter_kwargs
 
 
@@ -6,21 +6,6 @@ class ReducerMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    # def get_method(self, func, kind):
-    #     if callable(func):
-    #         return func
-    #     if isinstance(func, str):
-    #         if hasattr(self, func):
-    #             return getattr(self, func)     
-    #     return {
-    #         'urlfilter': self.default_urlfilter,
-    #         'parser': self.default_parser,
-    #         'urlrenderer': self.default_urlrenderer,
-    #         'urlpattern_renderer': self.default_pattern_renderer,
-    #         'breaker': self.default_breaker,
-    #         'payloader': self.default_payloader
-    #     }[kind]
     
     
     def dispatch(self, type, func, *args, **kwargs):
@@ -40,6 +25,7 @@ class ReducerMixin:
                 'breaker': self.default_breaker,
                 'payloader': self.default_payloader,
                 'curlrenderer': self.default_curlrenderer,
+                'pathrenderer': self.default_pathrenderer,
             }[type]
 
         return filter_kwargs(f, *args, **kwargs)
@@ -59,6 +45,9 @@ class ReducerMixin:
     
     def default_curlrenderer(self, curl, resposne, context):
         return curl
+    
+    def default_pathrenderer(self, path, response, context):        
+        return path
         
     def default_pattern_renderer(self, pattern, resposne, context):
         return pattern
