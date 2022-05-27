@@ -74,9 +74,8 @@ def trace(func):
             print(log)
             if not r.from_cache:
                 time.sleep(delay)
-        except:
-            print('')
-            raise
+        except Exception as e:
+            print(e)
         else:
             return r
     return wrapper
