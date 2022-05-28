@@ -108,10 +108,10 @@ def extract_json(content, many=True):
         
 
 date_formats = {
-    'fulldatetime': r'(?P<year>\d{2,4})[\.\-/년]\s*(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?\s+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[\:\s분]\s*(?P<second>[0-5]?\d)[초]?',
-    'fulldatehourminute': r'(?P<year>\d{2,4})[\.\-/년]\s*(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?\s+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[분]?',
-    'monthdayfulltime': r'(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?\s+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[\:\s분]\s*(?P<second>[0-5]?\d)[초]?',
-    'monthdayhourminute': r'[\.]?(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?\s+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[분]?',
+    'fulldatetime': r'(?P<year>\d{2,4})[\.\-/년]\s*(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?[\sT]+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[\:\s분]\s*(?P<second>[0-5]?\d)[초]?',
+    'fulldatehourminute': r'(?P<year>\d{2,4})[\.\-/년]\s*(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?[\sT]+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[분]?',
+    'monthdayfulltime': r'(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?[\sT]+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[\:\s분]\s*(?P<second>[0-5]?\d)[초]?',
+    'monthdayhourminute': r'[\.]?(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?[\sT]+(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[분]?',
     'fulldate': r'(?P<year>\d{2,4})[\.\-/년]\s*(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>\d{1,2})[\.일]?', #2022.2.3
     'monthday': r'[\.]?(?P<month>[0-2]?\d)[\.\-/월]\s*(?P<day>[0-3]?\d)[\.일]?', # 5.7, 1.2 .02.11, 
     'fulltime': r'(?P<hour>[0-5]?\d)[\:\s시]\s*(?P<minute>[0-5]?\d)[\:\s분]\s*(?P<second>[0-5]?\d)[초]?',
