@@ -1,4 +1,4 @@
-import requests_cache, uncurl
+import requests_cache
 
 from crawlite.utils.random import get_random_second
 from crawlite.utils.module import FromSettingsMixin
@@ -7,6 +7,7 @@ from .utils import set_user_agent
 from .exceptions import *
 from .adapters import CrawliteFileAdapter
 from .helper import trace, retry
+from .curl import curl2requests
 
 
 
@@ -54,18 +55,18 @@ class CachedRequests(FromSettingsMixin):
         proxies = proxies or self.get_proxies()
 
         r = self.apply_settings(self.requests.request, setting_prefix='REQUESTS_', method=method, proxies=proxies, **kwargs)
-        r.raise_for_status()
+        if r.status_code not in self.REQUEST_CACHE_ALLOWABLE_CODES:
+            r.raise_for_status()
         return r
     
 
-    def from_curl(self, command, refresh, delay, proxies=None, logging=True):
-        p = uncurl.parse_context(command)
+    def from_curl(self, command, refresh, delay, **kwargs):
+        p = curl2requests(command)
         return self.fetch(
-            p.method, refresh, delay, proxies=proxies, logging=logging,
-            url=p.url, data=p.data, headers=p.headers, cookies=p.cookies
+            p.pop('method'), refresh, delay, **kwargs, **p
         )
-
         
+
     def get_headers(self):
         return dict(self.headers)
 

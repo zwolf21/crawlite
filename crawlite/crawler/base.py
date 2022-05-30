@@ -30,10 +30,9 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 return link
             else:
                 return Path(link).absolute().as_uri()
-
+                
         if isinstance(action, CurlAction):
-            curl = link.replace('\n', '')
-            return curl
+            return link
 
         if isinstance(action, UrlRenderAction): 
             host = action.host or response.url

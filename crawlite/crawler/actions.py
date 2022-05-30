@@ -1,6 +1,4 @@
 from glob import glob
-from pathlib import Path
-from threading import local
 
 from ..utils.regex import strcompile
 

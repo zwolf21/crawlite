@@ -47,8 +47,9 @@ def _get_pre_request_log(method, url, data=None, proxies=None, **extra):
 def _get_after_request_log(response, delay, elasped):
     content_length = len(response.content or '')
     status = response.status_code
+    reason = response.reason
     size_exp = transform_bytes_length(content_length)
-    log = f'{status} {size_exp} {elasped}s'
+    log = f'{status} {reason}  {size_exp} {elasped}s'
 
     if ctype:= response.headers.get('Content-Type'):
         log = f'{log} {ctype}'
@@ -65,17 +66,18 @@ def trace(func):
     def wrapper(self, method, refresh, delay,**kwargs):
         try:
             pre_log = _get_pre_request_log(method, **kwargs)
-            print(pre_log, '\r', end='', sep='...')
+            print(pre_log, '...')
             st = time.time()
             r = func(self, method, refresh, delay, **kwargs)
             et = time.time()
             elapsed = round(et-st, 2)
-            log = f'{pre_log} => {_get_after_request_log(r, delay, elapsed)}'
+            log = f'  => {_get_after_request_log(r, delay, elapsed)}'
             print(log)
             if not r.from_cache:
                 time.sleep(delay)
         except Exception as e:
             print(e)
+            raise
         else:
             return r
     return wrapper
