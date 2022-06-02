@@ -18,7 +18,6 @@ from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_
 class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
     urlorders = None
 
-    
     def __init__(self, *args, crawl_listener=None, collect_results=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.crawl_listener = crawl_listener or (lambda module, event, context: True)
@@ -95,7 +94,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         else:
             raise CannotFindAction(f'{action} is not memeber of action')
                 
-    
     def _dispatch_fields(self, action, url):
         if not hasattr(action, 'fields'):
             return url
@@ -123,7 +121,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 extractset[g('ext')] = self.validate_extracted(extracted, func, meta)
         return extractset
 
-
     def _dispatch_parser(self, action, response, extracted, meta, context):
         results = self.dispatch(
             'parser', action.parser,
@@ -135,7 +132,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             return [results]
         return results
 
-
     def _dispatch_urlfilter(self, action, url, responsemap, context):
         if not hasattr(action, 'urlfiler'):
             return True
@@ -146,10 +142,8 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         )
     
     def _dispatch_payloader(self, action, context):
-        if not hasattr(action, 'payloader'):
+        if not hasattr(action, 'payloader') or not action.payloader:
             yield  
-        elif not action.payloader:
-            yield
         else:
             payloads = self.dispatch('payloader', action.payloader, context=context)
             if isinstance(payloads, (str, bytes)):
@@ -164,7 +158,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             )
         method = action.method or ('post' if kwargs.get('data') else 'get')
         return self.fetch(method, action.refresh, self.get_delay(action.delay), **kwargs)
-
 
     def _dispatch_referer(self, action, response):
         headers = self.get_headers()
@@ -185,7 +178,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             'breaker', action.breaker, response, context=context
         )
     
-
     def get_action(self, name):
         for action in self.urlorders:
             if action.name == name:
@@ -193,7 +185,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
     def pipeline(self, results, action):
         return results
-
 
     @catch_crawl_exception
     def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0):
@@ -232,9 +223,16 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                 #check post method
                 for payloads in self._dispatch_payloader(action, context):
-                    sub_response = self._dispatch_response(
-                        action, url=url, data=payloads, headers=headers, cookies=cookies
-                    )
+
+                    requests_kwargs = dict(url=url, headers=headers, cookies=cookies)
+
+                    if isinstance(payloads, (dict, list)):
+                        requests_kwargs['json'] = payloads
+                    else:
+                        requests_kwargs['data'] = payloads
+
+                    sub_response = self._dispatch_response(action, **requests_kwargs)
+
                     ## listen visiting url
                     _visite_count += 1
                     self.crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
