@@ -72,7 +72,7 @@ class FileAction(BaseAction):
 
     def _check_globpath(self):
         if '*' in self.path:
-            self.pathrenderer = self.pathrenderer or (lambda: glob(self.path))
+            self.pathrenderer = self.pathrenderer or (lambda: glob(self.path, recursive=True))
             
 
 
