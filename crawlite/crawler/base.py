@@ -163,7 +163,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
         headers = self.get_headers()
         if not hasattr(action, 'referer'):
             return headers
-        
+
         if action.referer and response:
             try:
                 referer = response.crawler.responsemap[action.referer]
@@ -252,7 +252,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                     ## respone meta setting
                     meta = ResponseMeta(soup=soup)
                     meta.set_urlutils(link, action)
-                    meta.set_responsemap(sub_response, action)
+                    meta.set_responsemap(response, action)
 
                     if response:
                         meta.update_responsemap(response.crawler.responsemap)
