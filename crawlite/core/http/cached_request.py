@@ -1,12 +1,12 @@
 import requests_cache
 
-from crawlite.utils.random import get_random_second
-from crawlite.utils.module import FromSettingsMixin
+from crawlite.utils.etc import get_random_second, get_rotate
+from crawlite.settings import FromSettingsMixin
 
 from .utils import set_user_agent
 from .exceptions import *
 from .adapters import CrawliteFileAdapter
-from .helper import trace, retry
+from .helper import trace, retry_for_raise, rotate_proxy
 from .curl import curl2requests
 
 
@@ -38,28 +38,33 @@ class CachedRequests(FromSettingsMixin):
 
     
     def get_delay(self, delay):
-        if delay is None:
-            if isinstance(self.REQUEST_DELAY, (tuple, list,)) and len(self.REQUEST_DELAY) == 2:
-                return get_random_second(*self.REQUEST_DELAY)
-            return self.REQUEST_DELAY
-        return delay
-    
+        return delay or get_random_second(*self.REQUEST_DELAY)   
 
-    @retry
+    
+    def delete_cache(self, **requests_kwargs):
+        cachekey = self.requests.cache.create_key(**requests_kwargs)
+        self.requests.cache.delete(cachekey)
+
+
     @trace
+    @retry_for_raise
+    @rotate_proxy
     def fetch(self, method, refresh, delay, proxies=None, logging=True, **kwargs):
         if refresh:
-            cache_key = self.requests.cache.create_key(method=method, **kwargs)
-            self.requests.cache.delete(cache_key)
+            self.delete_cache(method=method, **kwargs)
 
         proxies = proxies or self.get_proxies()
+        if proxies not in self.proxies_list:
+            self.proxies_list.insert(0, proxies)
 
-        r = self.apply_settings(self.requests.request, setting_prefix='REQUESTS_', method=method, proxies=proxies, **kwargs)
+        r = self.apply_settings(
+            self.requests.request, setting_prefix='REQUESTS_', method=method, proxies=proxies, **kwargs
+        )
+
         if r.status_code not in self.REQUEST_CACHE_ALLOWABLE_CODES:
             r.raise_for_status()
         return r
     
-
     def from_curl(self, command, refresh, delay, **kwargs):
         p = curl2requests(command)
         return self.fetch(
@@ -82,10 +87,8 @@ class CachedRequests(FromSettingsMixin):
     def get_proxies(self):
         for proxies in self.proxies_list:
             return proxies
-    
+        
     def rotate_proxies(self):
         if self.proxies_list:
-            h, *r = self.proxies_list
-            self.proxies_list = [*r, h]
+            self.proxies_list = get_rotate(self.proxies_list)
             return self.proxies_list[0]
-    

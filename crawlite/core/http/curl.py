@@ -25,7 +25,7 @@ def process_args(parser, tokens):
     def _parse(pat, v):
         if g:= pat.search(v):
             return {g.group('key'): g.group('value')}
-        return v
+        return {}
 
     def _parse_headers(h):
         pat = re.compile(r'(?P<key>.+?)\:\s*(?P<value>.+)')

@@ -1,37 +1,18 @@
 import functools, time
 from collections import abc
 
-from .exceptions import RetryMaxCountDone
+from requests.exceptions import ProxyError, ConnectTimeout
+
+from .exceptions import RetryMaxCountDone, RotateProxiesDone
+from crawlite.utils.etc import transform_bytes_length
 
 
-
-def transform_bytes_length(length, ndigits=None):
-    k = 1024
-    m = k**2
-    g = k**3
-
-    if length > k:
-        unit = 'K'
-        v = length / k
-    elif length > m:
-        unit = 'M'
-        v = length / m
-    elif length > g:
-        unit = 'G'
-        v = length / g
-    else:
-        unit = 'bytes'
-        v = length
-    return f'{round(v, ndigits)}{unit}'
 
 
 def _get_pre_request_log(method, url, data=None, proxies=None, **extra):
     METHOD = method.upper()
-
-    PROXIES = f"Proxy:{proxies}" if proxies else ''
-    
+    PROXIES = f"proxy:{proxies}" if proxies else '' 
     prefix = ' '.join(filter(None, [METHOD, url, PROXIES]))
-
     PAYLOADS = f"payloads:{transform_bytes_length(payloads, 2)}" if (data:=data) and (payloads := len(data)) else ''
     
     if postfix:= list(filter(None, [PAYLOADS])):
@@ -42,6 +23,7 @@ def _get_pre_request_log(method, url, data=None, proxies=None, **extra):
 
     log = f"{prefix}{postfix}"
     return log
+
 
 
 def _get_after_request_log(response, delay):
@@ -63,11 +45,13 @@ def _get_after_request_log(response, delay):
     return log
 
 
+
 def trace(func):
     @functools.wraps(func)
     def wrapper(self, method, refresh, delay,**kwargs):
         try:
-            pre_log = _get_pre_request_log(method, **kwargs)
+            proxies = self.get_proxies()
+            pre_log = _get_pre_request_log(method, proxies=proxies, **kwargs)
             print(f'{pre_log}')
             r = func(self, method, refresh, delay, **kwargs)
             log = f'  => {_get_after_request_log(r, delay)}'
@@ -83,36 +67,50 @@ def trace(func):
 
 
 
-def retry(func):
-    @functools.wraps(func)
-    def wrapper(self, *args,**kwargs):
+def retry_for_raise(fetch):
+    @functools.wraps(fetch)
+    def wrapper(self, *args, **kwargs):
         url = kwargs.get('url')
-        if isinstance(self.RETRY_INTERVAL_SECONDS, abc.Iterable):
-            retry_seconds = list(self.RETRY_INTERVAL_SECONDS)
-        elif isinstance(self.RETRY_INTERVAL_SECONDS, (int, float,)):
-            retry_seconds = [self.RETRY_INTERVAL_SECONDS]
-        elif not hasattr(self, 'RETRY_INTERVAL_SECONDS'):
-            retry_seconds = []
-        else:
-            raise ValueError(f'RETRY_INTERVAL_SECONDS must be integer float or iterables not {self.RETRY_INTERVAL_SECONDS}')
-
-        retry_proxies = list(self.proxies_list) or [None]
-
-        for i, sec in enumerate(retry_seconds):
-            for proxies in retry_proxies:
-                try:
-                    r = func(self, *args, **kwargs)
-                except Exception as e: 
-                    print(f"Exception: {e.__class__.__name__}")
-                    print(f" - {e.args[0]}")
-                    if proxies:
-                        if (next_proxies := self.rotate_proxies()) != proxies:
-                            print(f" - The requests by pass proxy server {proxies} has failed. Trying to next proxy server {next_proxies}")
-                            time.sleep(1)
-                else:
-                    return r
-            print(f" - Request {url} Failed, retry after {sec}sec(trys: {i+1})")
-            time.sleep(sec)
-        else:
-            raise RetryMaxCountDone(f'Request {url} Failed!')
+        retry_intervals = list(self.RETRY_INTERVAL_SECONDS)
+        while retry_intervals:
+            try:
+                response = fetch(self, *args, **kwargs)
+            except Exception as e:
+                if self.proxies_list and isinstance(e, RotateProxiesDone):
+                    raise
+                interval = retry_intervals.pop(0)
+                print(f" - {e}")
+                print(f" - Request {url} Failed, retry after {interval} sec...(retry remains: {len(retry_intervals)})")
+                time.sleep(interval)
+            else:
+                return response
+        raise RetryMaxCountDone(f"Request for {url} has failed!")
     return wrapper
+
+
+
+def rotate_proxy(fetch):
+    @functools.wraps(fetch)
+    def wrapper(self, *args, **kwargs):
+        if not self.proxies_list:
+            return fetch(self, *args, **kwargs)
+        init_proxy = self.get_proxies()
+        next_proxy = {}
+        rotate_count = 0
+        while True:
+            try:
+                response = fetch(self, *args, **kwargs)
+            except (ProxyError, ConnectTimeout) as e:
+                if init_proxy != next_proxy:
+                    break
+                print(e)
+                rotate_count += 1
+                current_proxy = self.get_proxies()
+                next_proxy = self.rotate_proxies()
+                print(f" - The requests by pass proxy server {current_proxy} has failed. Trying to next proxy server {next_proxy}...(rotate rate: {rotate_count}/{len(self.proxies_list)})")
+            else:
+                return response
+        raise RotateProxiesDone(f"All requests through {len(self.proxies_list)} proxies fail")
+    return wrapper
+
+

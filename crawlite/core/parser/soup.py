@@ -5,9 +5,10 @@ from bs4.element import Tag
 from datetime import datetime, date
 
 from crawlite.utils.regex import strcompile
-from crawlite.utils.module import FromSettingsMixin
+from crawlite.settings import FromSettingsMixin
 
 from .exceptions import *
+
 
 
 class SoupParser(FromSettingsMixin):
