@@ -15,7 +15,7 @@ from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_
 
 
 
-class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
+class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
     urlorders = None
 
     def __init__(self, *args, crawl_listener=None, collect_results=True, **kwargs):

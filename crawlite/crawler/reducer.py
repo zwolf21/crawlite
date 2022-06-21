@@ -3,9 +3,6 @@ from ..utils.module import filter_kwargs
 
 
 class ReducerMixin:
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     
     def dispatch(self, type, func, *args, **kwargs):
