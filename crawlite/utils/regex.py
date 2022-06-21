@@ -1,5 +1,6 @@
 import re
 
+from bs4.element import Tag
 
 def strcompile(exp):
     if isinstance(exp, str):
@@ -8,9 +9,14 @@ def strcompile(exp):
         return exp
 
 
-def extgroup(exp, target):
+def extgroup(exp, target, asdict=False):
+
+    if isinstance(target, Tag):
+        target = target.get_text()
+
     regex = strcompile(exp)
     if g := regex.search(target):
+        if asdict:
+            return g.groupdict()
         return g.group
-    # raise ValueError(f"{exp} not matched on {target}")
 

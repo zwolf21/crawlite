@@ -1,12 +1,13 @@
 from collections import abc, deque
 from urllib.error import URLError
+from pathlib import Path
 
 from ..core.http.cached_request import CachedRequests
 from ..core.parser.soup import SoupParser
 from ..utils.urls import queryjoin, urljoin, filter_params
 from ..utils.module import find_function, filter_kwargs
 from .exceptions import *
-from .actions import UrlPatternAction, UrlRenderAction
+from .actions import UrlPatternAction, UrlRenderAction, CurlAction, FileAction
 from .reducer import ReducerMixin
 from .meta import ResponseMeta
 from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, catch_crawl_exception
@@ -14,20 +15,29 @@ from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_
 
 
 
-class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
+class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
     urlorders = None
 
-    
     def __init__(self, *args, crawl_listener=None, collect_results=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.crawl_listener = crawl_listener or (lambda module, event, context: True)
         self.results = {} if collect_results else None
 
     def _resolve_link(self, link, action, response=None):
+        if isinstance(action, FileAction):
+            if link.startswith('file:///'):
+                return link
+            else:
+                return Path(link).absolute().as_uri()
+                
+        if isinstance(action, CurlAction):
+            return link
+
         if isinstance(action, UrlRenderAction): 
             host = action.host or response.url
         else:
             host = response.url
+
         if isinstance(link, abc.Mapping):
             return queryjoin(host, link)
         return urljoin(host, link)
@@ -45,6 +55,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 links = [host]
             else:
                 raise URLError("urlrender: host or renderer must be specified!")
+            return links
         elif isinstance(action, UrlPatternAction):
             if urlpattern_renderer := action.urlpattern_renderer:
                 urlpattern = self.dispatch(
@@ -61,25 +72,46 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 'urlpattern': urlpattern
             }
             links = self.parse_linkpattern(response.content, **kwargs)
-        return links
-    
+            return links
+        elif isinstance(action, CurlAction):
+            if curlrenderer:= action.curlrenderer:
+                curls = self.dispatch(
+                    'curlrenderer', curlrenderer,
+                    curl=action.curl, parent_resposne=response, responsemap=responsemap, context=context
+                )
+            elif curl := action.curl:
+                curls = [curl]
+            return curls
+        elif isinstance(action, FileAction):
+            if pathrenderer := action.pathrenderer:
+                paths = self.dispatch(
+                    'pathrenderer', pathrenderer,
+                    path=action.path, parent_resposne=response, responsemap=responsemap, context=context
+                )
+            elif path := action.path:
+                paths = [path]
+            return paths
+        else:
+            raise CannotFindAction(f'{action} is not memeber of action')
+                
     def _dispatch_fields(self, action, url):
+        if not hasattr(action, 'fields'):
+            return url
         url = filter_params(url, action.fields)
         return url
     
     def _dispatch_headers(self, action):
         headers = self.get_headers()
-        headers.update(action.headers or {})
+        if hasattr(action, 'headers'):
+            headers.update(action.headers or {})
         return headers
     
     def _dispatch_cookies(self, action):
         cookies = self.get_cookies()
-        cookies.update(action.cookies or {})
+        if hasattr(action, 'cookies'):
+            cookies.update(action.cookies or {})
         return cookies
     
-    def _dispatch_refresh(self, action):
-        return action.refresh
-
     def _dispatch_extractor(self, action, meta, response, context):
         extractset = {}
         if module := action.extractor:
@@ -88,7 +120,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                 extracted = filter_kwargs(func, meta=meta, soup=meta.soup, response=response, context=context)
                 extractset[g('ext')] = self.validate_extracted(extracted, func, meta)
         return extractset
-
 
     def _dispatch_parser(self, action, response, extracted, meta, context):
         results = self.dispatch(
@@ -101,17 +132,18 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             return [results]
         return results
 
-
     def _dispatch_urlfilter(self, action, url, responsemap, context):
+        if not hasattr(action, 'urlfiler'):
+            return True
+
         return self.dispatch(
             'urlfilter', action.urlfilter,
             url=url, responsemap=responsemap,  context=context
         )
     
-    
     def _dispatch_payloader(self, action, context):
-        if not action.payloader:
-            yield
+        if not hasattr(action, 'payloader') or not action.payloader:
+            yield  
         else:
             payloads = self.dispatch('payloader', action.payloader, context=context)
             if isinstance(payloads, (str, bytes)):
@@ -119,17 +151,19 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             else:
                 yield from payloads
         
-
-    def _dispatch_response(self, url, payloads, refresh, **kwargs):
-        if payloads:
-            response = self.post(url, data=payloads, **kwargs)
-        else:
-            response = self.get(url, refresh=refresh, **kwargs)
-        return response
-
+    def _dispatch_response(self, action, **kwargs):
+        if isinstance(action, CurlAction):
+            return self.from_curl(
+                kwargs.get('url'), action.refresh, self.get_delay(action.delay)
+            )
+        method = action.method or ('post' if kwargs.get('data') else 'get')
+        return self.fetch(method, action.refresh, self.get_delay(action.delay), **kwargs)
 
     def _dispatch_referer(self, action, response):
         headers = self.get_headers()
+        if not hasattr(action, 'referer'):
+            return headers
+        
         if action.referer and response:
             try:
                 referer = response.crawler.responsemap[action.referer]
@@ -144,7 +178,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
             'breaker', action.breaker, response, context=context
         )
     
-
     def get_action(self, name):
         for action in self.urlorders:
             if action.name == name:
@@ -152,7 +185,6 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
     def pipeline(self, results, action):
         return results
-
 
     @catch_crawl_exception
     def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0):
@@ -169,14 +201,14 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
         while response_queue:
             response = response_queue.pop()
-
-            refresh = self._dispatch_refresh(action)
+            
             cookies = self._dispatch_cookies(action)
             headers = self._dispatch_headers(action)
             headers.update(self._dispatch_referer(action, response))
 
             is_parsable = True
-            for link in self._dispatch_renderer(action, response, _responsemap, context):
+            for link in self._dispatch_renderer(action, response, _responsemap, context):                    
+
                 url = self._resolve_link(link, action, response)
                 url = self._dispatch_fields(action, url)
 
@@ -191,7 +223,15 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
 
                 #check post method
                 for payloads in self._dispatch_payloader(action, context):
-                    sub_response = self._dispatch_response(url, payloads, refresh, headers=headers, cookies=cookies)
+
+                    requests_kwargs = dict(url=url, headers=headers, cookies=cookies)
+
+                    if isinstance(payloads, (dict, list)):
+                        requests_kwargs['json'] = payloads
+                    else:
+                        requests_kwargs['data'] = payloads
+
+                    sub_response = self._dispatch_response(action, **requests_kwargs)
 
                     ## listen visiting url
                     _visite_count += 1
@@ -212,7 +252,7 @@ class BaseCrawler(CachedRequests, SoupParser, ReducerMixin):
                     ## respone meta setting
                     meta = ResponseMeta(soup=soup)
                     meta.set_urlutils(link, action)
-                    meta.set_responsemap(response, action)
+                    meta.set_responsemap(sub_response, action)
 
                     if response:
                         meta.update_responsemap(response.crawler.responsemap)

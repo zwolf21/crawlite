@@ -5,9 +5,10 @@ from bs4.element import Tag
 from datetime import datetime, date
 
 from crawlite.utils.regex import strcompile
-from crawlite.utils.module import FromSettingsMixin
+from crawlite.settings import FromSettingsMixin
 
 from .exceptions import *
+
 
 
 class SoupParser(FromSettingsMixin):
@@ -46,8 +47,8 @@ class SoupParser(FromSettingsMixin):
             parsed = list(dict.fromkeys(parsed))
         return parsed
     
-    def validate_extracted(self, extracted, func, meta):
-        if extracted is None:
+    def validate_extracted(self, extracted, func, meta, _root=True):
+        if _root and extracted is None:
             raise ExtractorReturnNoneValue(f'{func.__name__} cannot return type None')
         
         if not isinstance(meta.soup, BeautifulSoup):
@@ -66,27 +67,18 @@ class SoupParser(FromSettingsMixin):
             return extracted
         elif isinstance(extracted, (list, tuple, map, filter)) or inspect.isgenerator(extracted):
             extracted_list = [
-                self.validate_extracted(ext, func, meta) for ext in extracted
+                self.validate_extracted(ext, func, meta, _root=False) for ext in extracted
             ]
             return extracted_list
         elif isinstance(extracted, abc.Mapping):
             for key, val in extracted.items():
-                extracted[key] = self.validate_extracted(val, func, meta)
+                extracted[key] = self.validate_extracted(val, func, meta, _root=False)
             return extracted
         else:
-            raise ValueError(
-                f"{func.__name__} must return type of str, list, tuple, mapping, generator, date(time), or BeautifulSoup Element Tag instance"
-                f"Not f{type(extracted)}"
-            )
+            if _root:
+                raise ValueError(
+                    f"{func.__name__} must return type of str, list, tuple, mapping, generator, date(time), or BeautifulSoup Element Tag instance"
+                    f"Not f{type(extracted)}"
+                )
 
         return extracted
-        
-
-        
-
-
-
-    
-
-    
-
