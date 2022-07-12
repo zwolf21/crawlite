@@ -20,10 +20,14 @@ class CachedRequests(FromSettingsMixin):
         self.headers = {}
         self.cookies = {}
         self.proxies_list = []
-        self.headers = self.apply_settings(set_user_agent, header=self.headers)
         
         if self.HEADERS:
             self.headers.update(self.HEADERS)
+        else:
+            self.headers = self.apply_settings(
+                set_user_agent, setting_prefix='FAKE_USER_AGENT_',
+            )
+
         if self.COOKIES:
             self.cookies.update(self.COOKIES)
 

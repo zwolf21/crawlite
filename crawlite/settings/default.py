@@ -3,11 +3,16 @@ from datetime import timedelta
 
 
 # Request
-USER_AGENT_NAME = 'chrome'
+# USER_AGENT_NAME = 'chrome'
 REQUEST_DELAY = 0.5, 1.5
 RETRY_INTERVAL_SECONDS = 10, 15, 20
 
 REQUEST_LOGGING = True
+
+# FAKE_USER_AGENT
+FAKE_USER_AGENT_USE_CACHE_SERVER = True
+FAKE_USER_AGENT_USER_AGENT_NAME = 'chrome'
+
 
 # Request Cache
 REQUEST_CACHE_CACHE_NAME = 'crawlite.sqlite'

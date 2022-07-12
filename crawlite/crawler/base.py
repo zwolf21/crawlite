@@ -10,7 +10,7 @@ from .exceptions import *
 from .actions import UrlPatternAction, UrlRenderAction, CurlAction, FileAction
 from .reducer import ReducerMixin
 from .meta import ResponseMeta
-from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, catch_crawl_exception
+from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED
 
 
 
@@ -20,7 +20,8 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
 
     def __init__(self, *args, crawl_listener=None, collect_results=True, **kwargs):
         super().__init__(*args, **kwargs)
-        self.crawl_listener = crawl_listener or (lambda module, event, context: True)
+        # self.crawl_listener = crawl_listener or (lambda module, event, context: True)
+        self.crawl_listener = crawl_listener
         self.results = {} if collect_results else None
 
     def _resolve_link(self, link, action, response=None):
@@ -186,18 +187,35 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
     def pipeline(self, results, action):
         return results
 
-    @catch_crawl_exception
-    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0):
 
-        module_name = f"{self.__class__.__module__}.{self.__class__.__name__}"
+    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visit_count=0):
         action, *rest = _urlorders or self.urlorders
         _visited = _visited or set()
         
         # urlpattern에 의해 생성된 respons가 재귀적으로 추가될 큐
         response_queue = deque([_response])
         
-        if _response is None:
-            self.crawl_listener(module_name, CRAWLING_STARTED, {'visite_count': _visite_count})
+        def _reduce_listener(event, response=None):
+            if not self.crawl_listener:
+                return
+            
+            nonlocal _visit_count
+            nonlocal _response
+            
+            if event == VISITING_URL:
+                _visit_count += 1
+
+            context = {
+                'crawler': self,
+                'visit_count': _visit_count,
+                'event': event,
+                'response': response or _response
+            }
+            filter_kwargs(self.crawl_listener, **context)
+
+
+        if _response is None:        
+            _reduce_listener(CRAWLING_STARTED)
 
         while response_queue:
             response = response_queue.pop()
@@ -234,13 +252,11 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
                     sub_response = self._dispatch_response(action, **requests_kwargs)
 
                     ## listen visiting url
-                    _visite_count += 1
-                    self.crawl_listener(module_name, VISITING_URL, {'visite_count': _visite_count})
+                    _reduce_listener(VISITING_URL, sub_response)
                     
                     ## listen breaking loop
                     if self._dispatch_breaker(action, sub_response, context) is True:
-                        self.crawl_listener(module_name, CRAWLING_STOPPED, {'visite_count': _visite_count})
-                        return
+                        return _reduce_listener(CRAWLING_STOPPED, sub_response)
 
                     ## content type check
                     # soup로로 처리 불가능 한것은 content 그대로 넘김
@@ -272,11 +288,11 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
                         if isinstance(action, UrlPatternAction):
                             if action.recursive:
                                 response_queue.append(sub_response)
-                        if rest: self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count)
+                        if rest: self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visit_count)
 
             # BFO if not passable
             if is_parsable is False:
-                if rest: self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count)
+                if rest: self.crawl(context, response, rest, _visited, meta.responsemap, _visit_count)
         
         if _response is None:
-            self.crawl_listener(module_name, CRAWLING_COMPLETED, {'visite_count': _visite_count})
+            _reduce_listener(CRAWLING_COMPLETED)
