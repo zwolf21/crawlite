@@ -10,7 +10,7 @@ from .exceptions import *
 from .actions import UrlPatternAction, UrlRenderAction, CurlAction, FileAction
 from .reducer import ReducerMixin
 from .meta import ResponseMeta
-from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED, catch_crawl_exception
+from .event import CRAWLING_STARTED, CRAWLING_COMPLETED, VISITING_URL, CRAWLING_STOPPED
 
 
 
