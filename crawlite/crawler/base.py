@@ -188,7 +188,7 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
         return results
 
 
-    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visite_count=0):
+    def crawl(self, context=None, _response=None, _urlorders=None, _visited=None, _responsemap=None, _visit_count=0):
         action, *rest = _urlorders or self.urlorders
         _visited = _visited or set()
         
@@ -199,15 +199,15 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
             if not self.crawl_listener:
                 return
             
-            nonlocal _visite_count
+            nonlocal _visit_count
             nonlocal _response
             
             if event == VISITING_URL:
-                _visite_count += 1
+                _visit_count += 1
 
             context = {
                 'module': self,
-                'visit_count': _visite_count,
+                'visit_count': _visit_count,
                 'event': event,
                 'response': response or _response
             }
@@ -288,11 +288,11 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
                         if isinstance(action, UrlPatternAction):
                             if action.recursive:
                                 response_queue.append(sub_response)
-                        if rest: self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visite_count)
+                        if rest: self.crawl(context, sub_response, rest, _visited, meta.responsemap, _visit_count)
 
             # BFO if not passable
             if is_parsable is False:
-                if rest: self.crawl(context, response, rest, _visited, meta.responsemap, _visite_count)
+                if rest: self.crawl(context, response, rest, _visited, meta.responsemap, _visit_count)
         
         if _response is None:
             _reduce_listener(CRAWLING_COMPLETED)
