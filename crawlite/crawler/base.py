@@ -206,7 +206,7 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
                 _visit_count += 1
 
             context = {
-                'module': self,
+                'crawler': self,
                 'visit_count': _visit_count,
                 'event': event,
                 'response': response or _response
