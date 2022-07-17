@@ -7,36 +7,59 @@ from datetime import datetime
 from bs4.element import Tag
 from dateutil.relativedelta import relativedelta
 
+
+
+def parse_number(value:str):
+    if isinstance(value, (int, float)):
+        return value
+
+    value = value.strip('.')
+    dot_count = value.count('.')
+
+    if dot_count == 0:
+        tokens = filter(str.isdigit, value)
+        return int(''.join(tokens))
+    elif dot_count == 1:
+        tokens = filter(lambda c: c == '.' or c.isdigit(), value)
+        return float(''.join(tokens))
+    else:
+        return value
+
+
+def prettier(value):
+    if not isinstance(value, (str, Tag, bytes)):
+        return value
+
+    if isinstance(value, Tag):
+        value = value.get_text(strip=True)
+        
+    trantab = {
+        '<br>': '',
+        '</br>': '\n',
+        '<p>':'',
+        '</p>': '\n',
+        '\t': '',
+        '\u200b': '',
+        '\xa0': '',
+        
+    }
+
+    for tok, repl in trantab.items():
+        value = value.replace(tok, repl)
+    
+    lines = []
+    for line in value.split('\n'):
+        if line := line.strip():
+            lines.append(line)
+    return '\n'.join(lines)
+
+
+
 def prettify_content(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         content = func(*args, **kwargs)
-
-        if isinstance(content, Tag):
-            content = content.get_text()
-
-        if not content:
-            return content
-
-        trantab = {
-            '<br>': '',
-            '</br>': '\n',
-            '<p>':'',
-            '</p>': '\n',
-            '\t': '',
-            '\u200b': '',
-            '\xa0': '',
-            
-        }
-        for tok, repl in trantab.items():
-            content = content.replace(tok, repl)
-        
-        lines = []
-        for line in content.split('\n'):
-            if line := line.strip():
-                lines.append(line)
-
-        return '\n'.join(lines)
+        return prettier(content)
     return wrapper
 
 
@@ -176,3 +199,35 @@ def try2datetime(str_date):
                 return datetime(month=n.month, day=n.day, **kw) - relativedelta(days=2)
 
     raise ValueError('Cannot find datepattern in %s' % str_date)
+
+
+
+def get_nested_soup_depth(soup, *args, max_depth=True, **kwargs):
+    def counter(soup, count=0):
+        for e in soup(*args, **kwargs):
+            yield from counter(e, count+1)
+        yield count
+    if max_depth:
+        return max(counter(soup))
+    return min(counter(soup))
+
+
+
+def filter_nested_soup_by_depth(soup, *args, depth=0, **kwargs):
+    return [
+        e for e in soup(*args, **kwargs)
+        if get_nested_soup_depth(e, *args, **kwargs) == depth
+    ]
+
+
+def find_table(soup:Tag, *columns:str, tag_name='table'):
+    def filter(tag):
+        if tag.name != tag_name:
+            return False
+        for col in columns:
+            if col not in tag.text:
+                return False
+        return True
+    depth = get_nested_soup_depth(soup, filter, max_depth=False)
+    if tables := filter_nested_soup_by_depth(soup, filter, depth=depth):
+        return tables[0]

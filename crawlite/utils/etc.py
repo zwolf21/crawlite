@@ -47,3 +47,23 @@ def transform_bytes_length(length, ndigits=None):
 
 
 
+def array2matrix(array:list, n:int, orphan=True):
+    length = len(array)
+    s, e = 0, n
+    result = []
+    while e < length:
+        slc = array[s:e]
+        s = e
+        e = e + n
+        result.append(slc)
+
+    rest = array[s:e]
+    is_orphan = rest and len(rest) < n
+
+    if not is_orphan:
+        result.append(rest)
+    
+    if is_orphan:
+        if orphan:
+            result.append(rest)
+    return result
