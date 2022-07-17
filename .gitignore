@@ -16,3 +16,4 @@ __pycache__/
 pyvenv.cfg
 *.csv
 *.xlsx
+*.html
