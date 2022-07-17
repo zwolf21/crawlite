@@ -5,6 +5,7 @@ from bs4.element import Tag
 from datetime import datetime, date
 
 from crawlite.utils.regex import strcompile
+from crawlite.utils.parse import prettier
 from crawlite.settings import FromSettingsMixin
 
 from .exceptions import *
@@ -48,8 +49,8 @@ class SoupParser(FromSettingsMixin):
         return parsed
     
     def validate_extracted(self, extracted, func, meta, _root=True):
-        if _root and extracted is None:
-            raise ExtractorReturnNoneValue(f'{func.__name__} cannot return type None')
+        # if _root and extracted is None:
+        #     raise ExtractorReturnNoneValue(f'{func.__name__} cannot return type None')
         
         if not isinstance(meta.soup, BeautifulSoup):
             raise CannotExtractError(f"{func.__name__} won't recive soup instance or None")
@@ -57,10 +58,13 @@ class SoupParser(FromSettingsMixin):
         if isinstance(extracted, Tag):
             if self.EXTRACT_AUTO_SOUP2TEXT:
                 extracted = extracted.get_text(strip=self.EXTRACT_AUTO_STRIP)
-
+            if self.EXTRACT_AUTO_PRETTIFY:
+                extracted = prettier(extracted)
         elif isinstance(extracted, str):
             if self.EXTRACT_AUTO_STRIP:
                 extracted = extracted.strip()
+            if self.EXTRACT_AUTO_PRETTIFY:
+                extracted = prettier(extracted)
         elif isinstance(extracted, (int, float)):
             return extracted
         elif isinstance(extracted, (datetime, date)):
@@ -71,14 +75,17 @@ class SoupParser(FromSettingsMixin):
             ]
             return extracted_list
         elif isinstance(extracted, abc.Mapping):
+            ext = extracted.__class__()
             for key, val in extracted.items():
-                extracted[key] = self.validate_extracted(val, func, meta, _root=False)
-            return extracted
+                val = self.validate_extracted(val, func, meta, _root=False)
+                if self.EXTRACT_AUTO_PRETTIFY:
+                    key = prettier(key)
+                ext[key] = val
+            return ext
         else:
             if _root:
                 raise ValueError(
                     f"{func.__name__} must return type of str, list, tuple, mapping, generator, date(time), or BeautifulSoup Element Tag instance"
                     f"Not f{type(extracted)}"
                 )
-
         return extracted

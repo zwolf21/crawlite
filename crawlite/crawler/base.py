@@ -134,7 +134,7 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
         return results
 
     def _dispatch_urlfilter(self, action, url, responsemap, context):
-        if not hasattr(action, 'urlfiler'):
+        if not hasattr(action, 'urlfilter'):
             return True
 
         return self.dispatch(
@@ -245,7 +245,7 @@ class BaseCrawler(ReducerMixin, CachedRequests, SoupParser):
                     requests_kwargs = dict(url=url, headers=headers, cookies=cookies)
 
                     if isinstance(payloads, (dict, list)):
-                        requests_kwargs['json'] = payloads
+                        requests_kwargs['data'] = payloads
                     else:
                         requests_kwargs['data'] = payloads
 
