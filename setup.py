@@ -33,7 +33,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.2',
+    version='0.1.3',
 
     description='Scraping library by crawling link patterns, url and parsing',
     # long_description=get_long_description(),
@@ -52,6 +52,7 @@ setup(
     classifiers=[
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 
     # What does your project relate to?
@@ -59,7 +60,7 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=find_packages(exclude=['contrib', 'docs', 'tests']),
+    packages=find_packages(exclude=['contrib', 'docs', 'test']),
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
